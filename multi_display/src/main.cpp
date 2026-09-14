@@ -144,6 +144,7 @@ static void handleSerialCommands() {
         Serial.println(F("  STATUS       - Print device status, IP, active role, battery"));
         Serial.println(F("  REFRESH      - Force full e-paper screen refresh"));
         Serial.println(F("  REBOOT       - Restart ESP32"));
+        Serial.println(F("  GET_BADGE    - Read current badge configuration (JSON)"));
         Serial.println(F("  CONFIG:{...} - Push JSON configuration to update NVS settings"));
         Serial.println(F("============================================"));
         return;
@@ -159,6 +160,50 @@ static void handleSerialCommands() {
             battV, battPct);
         return;
     }
+    if (line.equalsIgnoreCase("GET_BADGE") || line.equalsIgnoreCase("GET_CONFIG")) {
+        BadgeConfig& bc = BadgeManager::getConfig();
+        JsonDocument bDoc;
+        bDoc["mode"] = bc.subMode;
+        bDoc["submode"] = bc.subMode;
+
+        JsonObject conf = bDoc["conf"].to<JsonObject>();
+        conf["name"] = bc.name;
+        conf["title"] = bc.title;
+        conf["company"] = bc.company;
+        conf["handle"] = bc.handle;
+        conf["qr"] = bc.qrUrl;
+
+        JsonObject lugg = bDoc["lugg"].to<JsonObject>();
+        lugg["owner"] = bc.name;
+        lugg["phone"] = bc.phone;
+        lugg["email"] = bc.email;
+        lugg["note"] = bc.note;
+        lugg["qr"] = bc.qrUrl;
+
+        JsonObject stat = bDoc["stat"].to<JsonObject>();
+        stat["title"] = bc.statTitle;
+        stat["subtitle"] = bc.statSub;
+        stat["footer"] = bc.statFoot;
+        stat["qr"] = bc.qrUrl;
+
+        bDoc["name"] = bc.name;
+        bDoc["title"] = bc.title;
+        bDoc["company"] = bc.company;
+        bDoc["handle"] = bc.handle;
+        bDoc["qr"] = bc.qrUrl;
+        bDoc["phone"] = bc.phone;
+        bDoc["email"] = bc.email;
+        bDoc["note"] = bc.note;
+        bDoc["stitle"] = bc.statTitle;
+        bDoc["ssub"] = bc.statSub;
+        bDoc["sfoot"] = bc.statFoot;
+
+        String out;
+        serializeJson(bDoc, out);
+        Serial.print(F("CONFIG:"));
+        Serial.println(out);
+        return;
+    }
     if (line.equalsIgnoreCase("REFRESH")) {
         Serial.println(F("[Serial] Forcing display refresh..."));
         renderActiveRole();
@@ -170,8 +215,12 @@ static void handleSerialCommands() {
         ESP.restart();
         return;
     }
-    if (line.startsWith("CONFIG:")) {
-        String jsonPayload = line.substring(7);
+    if (line.startsWith("CONFIG:") || line.startsWith("BADGE:") || line.startsWith("{")) {
+        String jsonPayload;
+        if (line.startsWith("CONFIG:")) jsonPayload = line.substring(7);
+        else if (line.startsWith("BADGE:")) jsonPayload = line.substring(6);
+        else jsonPayload = line;
+
         JsonDocument doc;
         DeserializationError err = deserializeJson(doc, jsonPayload);
         if (err) {
@@ -210,6 +259,32 @@ static void handleSerialCommands() {
             p.end();
         }
 
+        // Badge settings
+        if (doc["submode"].is<int>() || doc["name"].is<const char*>() || doc["handle"].is<const char*>() || doc["stitle"].is<const char*>() || doc["owner"].is<const char*>()) {
+            BadgeConfig& bc = BadgeManager::getConfig();
+            if (doc["submode"].is<int>()) bc.subMode = doc["submode"].as<int>();
+            if (doc["mode"].is<int>()) bc.subMode = doc["mode"].as<int>();
+
+            if (doc["name"].is<const char*>()) strncpy(bc.name, doc["name"].as<const char*>(), sizeof(bc.name) - 1);
+            if (doc["title"].is<const char*>()) strncpy(bc.title, doc["title"].as<const char*>(), sizeof(bc.title) - 1);
+            if (doc["company"].is<const char*>()) strncpy(bc.company, doc["company"].as<const char*>(), sizeof(bc.company) - 1);
+            if (doc["comp"].is<const char*>()) strncpy(bc.company, doc["comp"].as<const char*>(), sizeof(bc.company) - 1);
+            if (doc["handle"].is<const char*>()) strncpy(bc.handle, doc["handle"].as<const char*>(), sizeof(bc.handle) - 1);
+            if (doc["qr"].is<const char*>()) strncpy(bc.qrUrl, doc["qr"].as<const char*>(), sizeof(bc.qrUrl) - 1);
+
+            if (doc["owner"].is<const char*>()) strncpy(bc.name, doc["owner"].as<const char*>(), sizeof(bc.name) - 1);
+            if (doc["phone"].is<const char*>()) strncpy(bc.phone, doc["phone"].as<const char*>(), sizeof(bc.phone) - 1);
+            if (doc["email"].is<const char*>()) strncpy(bc.email, doc["email"].as<const char*>(), sizeof(bc.email) - 1);
+            if (doc["note"].is<const char*>()) strncpy(bc.note, doc["note"].as<const char*>(), sizeof(bc.note) - 1);
+
+            if (doc["stitle"].is<const char*>()) strncpy(bc.statTitle, doc["stitle"].as<const char*>(), sizeof(bc.statTitle) - 1);
+            if (doc["ssub"].is<const char*>()) strncpy(bc.statSub, doc["ssub"].as<const char*>(), sizeof(bc.statSub) - 1);
+            if (doc["sfoot"].is<const char*>()) strncpy(bc.statFoot, doc["sfoot"].as<const char*>(), sizeof(bc.statFoot) - 1);
+
+            BadgeManager::updateConfig(bc);
+            WebServerApp::setActiveRole(ROLE_BADGE);
+        }
+
         Serial.println(F("[Config Success] Configuration written to NVS!"));
         if (needReboot) {
             Serial.println(F("[Config] Network settings updated -> Restarting in 1s to reconnect..."));
@@ -218,6 +293,7 @@ static void handleSerialCommands() {
         } else {
             renderActiveRole();
         }
+        return;
     }
 }
 

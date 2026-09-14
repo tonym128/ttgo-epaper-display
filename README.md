@@ -53,6 +53,14 @@ You can flash and configure your device in under 60 seconds directly in your web
 6. Click **Install Firmware**.
 7. Once flashing is complete, click **Push Settings to Device** to configure Wi-Fi and location over serial without needing to recompile!
 
+### Live Smart Badge Studio & Configurator
+To configure your attendee badge, luggage tag, or status placard with an interactive live e-paper preview:
+1. Open the [**Smart Badge Studio**](docs/badge.html) in your browser.
+2. Connect via **USB Serial** or **Bluetooth (BLE)**.
+3. Click **📥 Read from Badge** to fetch the current configuration stored in the ESP32's memory.
+4. Edit attendee info, handle, company, phone, notes, or QR code link while viewing the real-time 250×122 canvas preview.
+5. Click **📤 Save & Write to Badge** to update the e-paper display instantly!
+
 ---
 
 ## Quick Start: Build from Source with PlatformIO
