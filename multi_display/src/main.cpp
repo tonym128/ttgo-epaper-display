@@ -12,6 +12,7 @@
 #include "badge_mgr.h"
 #include "news_mgr.h"
 #include "ble_mgr.h"
+#include <mbedtls/base64.h>
 
 RTC_DATA_ATTR static uint32_t bootCount = 0;
 static unsigned long lastHourlyRefresh = 0;
@@ -45,7 +46,7 @@ void renderActiveRole() {
             break;
         }
         case ROLE_PICTURE: {
-            uint8_t buffer[4096];
+            static uint8_t buffer[4096];
             size_t actualLen = 0;
             String caption = "";
             bool hasPic = PictureManager::loadBitmap(buffer, sizeof(buffer), actualLen, caption);
@@ -73,6 +74,7 @@ void renderActiveRole() {
             break;
         }
     }
+    Serial.println(F("[Main] Display refresh complete."));
 }
 
 void enterPowerSaveSleep(uint64_t sleepSeconds) {
@@ -95,6 +97,7 @@ void enterPowerSaveSleep(uint64_t sleepSeconds) {
 }
 
 void setup() {
+    Serial.setRxBufferSize(8192);
     Serial.begin(115200);
     delay(100);
 
@@ -156,7 +159,9 @@ static void handleSerialCommands() {
         Serial.println(F("  POWER:1      - Set power mode to Deep Sleep power saving"));
         Serial.println(F("  ROLE:<0-4>   - Switch active role (0:Weather, 1:Pic, 2:Cal, 3:Badge, 4:News)"));
         Serial.println(F("  NEXT         - Cycle next item (Article / Quote / Badge)"));
+        Serial.println(F("  NEWS:FETCH   - Fetch live news articles (HN / Reddit / RSS)"));
         Serial.println(F("  REFRESH      - Force full e-paper screen refresh"));
+        Serial.println(F("  PHOTO_B64    - PHOTO_B64:<caption_optional>:<base64_bitmap>"));
         Serial.println(F("  REBOOT       - Restart ESP32"));
         Serial.println(F("  CONFIG:{...} - Push unified JSON configuration (Weather, News, Quotes, Photo, Badge, Wi-Fi)"));
         Serial.println(F("============================================"));
@@ -248,8 +253,10 @@ static void handleSerialCommands() {
     if (line.startsWith("ROLE:")) {
         int r = line.substring(5).toInt();
         WebServerApp::setActiveRole((AppRole)r);
-        renderActiveRole();
+        WebServerApp::clearRefreshNeeded();
+        BleManager::clearUpdateFlag();
         Serial.printf("[Serial] Active role switched to: %d\n", r);
+        renderActiveRole();
         return;
     }
     if (line.equalsIgnoreCase("NEXT")) {
@@ -257,19 +264,69 @@ static void handleSerialCommands() {
         if (role == ROLE_NEWS) NewsManager::nextArticle();
         else if (role == ROLE_CALENDAR) CalendarManager::nextItem();
         else if (role == ROLE_BADGE) BadgeManager::cycleSubMode();
-        renderActiveRole();
+        WebServerApp::clearRefreshNeeded();
+        BleManager::clearUpdateFlag();
         Serial.println(F("[Serial] Cycled to next item."));
+        renderActiveRole();
         return;
     }
     if (line.equalsIgnoreCase("REFRESH")) {
         Serial.println(F("[Serial] Forcing display refresh..."));
+        if (WebServerApp::getActiveRole() == ROLE_NEWS) {
+            NewsManager::fetchArticles();
+        }
+        WebServerApp::clearRefreshNeeded();
+        BleManager::clearUpdateFlag();
         renderActiveRole();
+        return;
+    }
+    if (line.equalsIgnoreCase("NEWS:FETCH") || line.equalsIgnoreCase("FETCH_NEWS")) {
+        Serial.println(F("[Serial] Fetching live news articles..."));
+        bool ok = NewsManager::fetchArticles();
+        if (ok) {
+            Serial.println(F("[Serial] News articles fetched and display updated!"));
+            WebServerApp::clearRefreshNeeded();
+            BleManager::clearUpdateFlag();
+            renderActiveRole();
+        } else {
+            Serial.println(F("[Serial] Failed to fetch news articles."));
+        }
         return;
     }
     if (line.equalsIgnoreCase("REBOOT")) {
         Serial.println(F("[Serial] Rebooting..."));
         delay(200);
         ESP.restart();
+        return;
+    }
+    if (line.startsWith("PHOTO_B64:")) {
+        int firstColon = line.indexOf(':');
+        int secondColon = line.indexOf(':', firstColon + 1);
+        String caption = "";
+        String b64Data = "";
+        if (secondColon != -1) {
+            caption = line.substring(firstColon + 1, secondColon);
+            b64Data = line.substring(secondColon + 1);
+        } else {
+            b64Data = line.substring(firstColon + 1);
+        }
+        b64Data.trim();
+
+        if (b64Data.length() > 0) {
+            static uint8_t decoded[4096];
+            size_t olen = 0;
+            int ret = mbedtls_base64_decode(decoded, sizeof(decoded), &olen, (const unsigned char*)b64Data.c_str(), b64Data.length());
+            if (ret == 0 && olen >= 3800) {
+                PictureManager::saveBitmap(decoded, olen, caption);
+                WebServerApp::setActiveRole(ROLE_PICTURE);
+                WebServerApp::clearRefreshNeeded();
+                BleManager::clearUpdateFlag();
+                Serial.printf("[Photo Success] Uploaded %u bytes bitmap via Serial! Role set to Picture.\n", (unsigned int)olen);
+                renderActiveRole();
+            } else {
+                Serial.printf("[Photo Error] Base64 decode failed or incomplete: ret=%d, olen=%u\n", ret, (unsigned int)olen);
+            }
+        }
         return;
     }
     if (line.startsWith("PHOTO_START:") || line.startsWith("START:")) {
@@ -283,8 +340,10 @@ static void handleSerialCommands() {
         else jsonPayload = line;
 
         if (BleManager::applyUnifiedJson(jsonPayload.c_str())) {
-            renderActiveRole();
+            WebServerApp::clearRefreshNeeded();
+            BleManager::clearUpdateFlag();
             Serial.println(F("[Config Success] Configuration written to NVS & display refreshed!"));
+            renderActiveRole();
         } else {
             Serial.println(F("[Config Error] Failed to parse JSON configuration."));
         }

@@ -1366,8 +1366,16 @@
 
       // 2. Over USB Serial
       if (serialPort) {
-        await sendSerialText(`PHOTO_START:${totalBytes}:${caption}`);
-        log('[Serial Photo] Header sent over USB Serial.');
+        let binary = '';
+        const bytes = new Uint8Array(processedBitmap.buffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = btoa(binary);
+        log(`[Serial Photo] Sending ${bytes.byteLength} bytes photo via Base64 (${b64.length} chars)...`);
+        await sendSerialText(`PHOTO_B64:${caption}:${b64}`);
+        log('[Serial Photo] Photo uploaded over USB Serial! E-Paper updating.');
+        alert('Photo uploaded over USB Serial! E-Paper updating.');
         return;
       }
 

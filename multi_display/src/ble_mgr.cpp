@@ -180,8 +180,8 @@ void BleManager::init() {
 
 void BleManager::startAdvertising() {
     if (!bleEnabled) return;
-    advertising = true;
     NimBLEDevice::startAdvertising();
+    advertising = true;
     Serial.printf("[BLE] Advertising active as '%s'\n", BLE_DEVICE_NAME);
 }
 
@@ -190,16 +190,8 @@ void BleManager::stop() {
         NimBLEDevice::stopAdvertising();
         advertising = false;
     }
-    if (pServer != nullptr) {
-        NimBLEDevice::deinit(true);
-        pServer = nullptr;
-        pConfigChar = nullptr;
-        pCmdChar = nullptr;
-        pPhotoChar = nullptr;
-        pStatusChar = nullptr;
-    }
     clientConnected = false;
-    Serial.println(F("[BLE] NimBLE stack de-initialized."));
+    Serial.println(F("[BLE] NimBLE advertising stopped. Radio inactive."));
 }
 
 void BleManager::loop() {
@@ -403,8 +395,9 @@ bool BleManager::applyUnifiedJson(const char* jsonStr) {
 void BleManager::handlePhotoChunk(const uint8_t* data, size_t len) {
     if (len == 0) return;
 
-    // Check for START header: "START:<expectedBytes>:<caption text>"
-    if (len > 6 && memcmp(data, "START:", 6) == 0) {
+    // Check for START header: "START:<expectedBytes>:<caption text>" or "PHOTO_START:..."
+    if ((len >= 6 && memcmp(data, "START:", 6) == 0) ||
+        (len >= 12 && memcmp(data, "PHOTO_START:", 12) == 0)) {
         String hdr = String((const char*)data, len);
         int firstColon = hdr.indexOf(':');
         int secondColon = hdr.indexOf(':', firstColon + 1);
@@ -416,7 +409,7 @@ void BleManager::handlePhotoChunk(const uint8_t* data, size_t len) {
             photoCaption = "";
         }
         photoReceivedBytes = 0;
-        Serial.printf("[BLE Photo] Header received: expected %u bytes, caption: '%s'\n",
+        Serial.printf("[Photo] Header received: expected %u bytes, caption: '%s'\n",
             (unsigned)photoExpectedBytes, photoCaption.c_str());
         return;
     }

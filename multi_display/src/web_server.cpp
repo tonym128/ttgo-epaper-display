@@ -1502,7 +1502,7 @@ void WebServerApp::handlePictureUpload() {
         return;
     }
 
-    uint8_t decoded[4096];
+    static uint8_t decoded[4096];
     size_t olen = 0;
     int ret = mbedtls_base64_decode(decoded, sizeof(decoded), &olen, (const unsigned char*)b64Data, slen);
     if (ret != 0 || olen < 3800) {
@@ -1529,7 +1529,7 @@ void WebServerApp::handlePictureCurrent() {
         return;
     }
 
-    uint8_t buffer[4096];
+    static uint8_t buffer[4096];
     size_t actualLen = 0;
     String caption = "";
     bool ok = PictureManager::loadBitmap(buffer, sizeof(buffer), actualLen, caption);

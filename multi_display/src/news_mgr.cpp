@@ -89,6 +89,7 @@ bool NewsManager::fetchHackerNews() {
         return false;
     }
     http.setTimeout(10000);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
 
     int code = http.GET();
     if (code != HTTP_CODE_OK) {
@@ -171,6 +172,7 @@ bool NewsManager::fetchRssFeed() {
     }
 
     http.setTimeout(12000);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.addHeader("User-Agent", "Mozilla/5.0 (compatible; ESP32-News/1.0)");
 
     int code = http.GET();
@@ -268,6 +270,7 @@ bool NewsManager::fetchReddit() {
 
     if (!http.begin(client, url)) return false;
     http.setTimeout(8000);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
     int code = http.GET();
