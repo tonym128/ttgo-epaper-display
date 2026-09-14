@@ -1327,6 +1327,7 @@ void WebServerApp::handleClient() {
 
 bool WebServerApp::isRefreshNeeded() { return refreshRequested; }
 void WebServerApp::clearRefreshNeeded() { refreshRequested = false; }
+void WebServerApp::requestRefresh() { refreshRequested = true; }
 AppRole WebServerApp::getActiveRole() { return activeRole; }
 
 void WebServerApp::setActiveRole(AppRole role) {

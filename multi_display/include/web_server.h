@@ -10,6 +10,7 @@ public:
 
     static bool isRefreshNeeded();
     static void clearRefreshNeeded();
+    static void requestRefresh();
 
     static AppRole getActiveRole();
     static void setActiveRole(AppRole role);

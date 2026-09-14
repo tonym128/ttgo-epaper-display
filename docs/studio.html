@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LilyGo TTGO T5 | Unified Device Studio & Multi-Tool Configurator</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%3E%3Ctext y=%2226%22 font-size=%2226%22>🎛️</text></svg>">
+
+  <!-- Zero-dependency QR Code generator -->
+  <script src="qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg-base: #0a0f1d;
+      --bg-card: #131b2e;
+      --bg-card-hover: #1a253f;
+      --bg-input: #0b1120;
+      --border: #233252;
+      --border-focus: #3b82f6;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-glow: rgba(37, 99, 235, 0.35);
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.5;
+      padding: 0 0 60px 0;
+      min-height: 100vh;
+    }
+
+    /* Top Navigation */
+    header {
+      background: rgba(19, 27, 46, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      background: rgba(37, 99, 235, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .header-links {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .header-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s;
+    }
+    .header-link:hover { color: white; }
+
+    .container {
+      max-width: 1180px;
+      margin: 28px auto 0;
+      padding: 0 20px;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: 2.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      max-width: 650px;
+      margin: 0 auto;
+    }
+
+    /* Connection Card Bar */
+    .conn-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .conn-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .status-badge.offline {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .status-badge.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot.green { background: #10b981; }
+    .dot.red { background: #ef4444; }
+
+    /* Tool Tabs Bar */
+    .tools-nav {
+      display: flex;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 6px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .tool-tab {
+      flex: 1;
+      min-width: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tool-tab:hover { color: white; background: var(--bg-card-hover); }
+    .tool-tab.active {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    }
+
+    /* Grid Layout */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 940px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    input[type="text"], input[type="password"], input[type="number"], select, textarea {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: white;
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .row { display: flex; gap: 12px; }
+    .row > * { flex: 1; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #059669; }
+    .btn-secondary { background: #243048; color: white; border: 1px solid #334366; }
+    .btn-secondary:hover { background: #2d3d5c; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-block { width: 100%; }
+
+    /* E-Paper Stage */
+    .epaper-stage {
+      background: #070a14;
+      border: 1px solid #1c273e;
+      border-radius: 12px;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .epaper-bezel {
+      background: #1e293b;
+      border: 3px solid #334155;
+      border-radius: 8px;
+      padding: 6px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+    }
+    canvas#previewCanvas {
+      width: 500px;
+      height: 244px;
+      background: #f4f4f0;
+      image-rendering: pixelated;
+      display: block;
+      border-radius: 2px;
+    }
+    @media (max-width: 560px) {
+      canvas#previewCanvas { width: 100%; height: auto; }
+    }
+    .screen-meta {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 500px;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* Terminal Console */
+    .terminal-box {
+      background: #060913;
+      border: 1px solid #1c273e;
+      border-radius: 10px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+    .terminal-header {
+      background: #0f172a;
+      padding: 8px 14px;
+      border-bottom: 1px solid #1c273e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .terminal-body {
+      height: 140px;
+      overflow-y: auto;
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: #38bdf8;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .terminal-input-bar {
+      display: flex;
+      border-top: 1px solid #1c273e;
+      background: #090e1b;
+    }
+    .terminal-input-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 8px 12px;
+      color: white;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+    .terminal-input-bar input:focus { outline: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <span>🎛️</span>
+      <span>LilyGo TTGO T5 Device Studio</span>
+      <span class="brand-badge">Bluetooth & Serial Hub</span>
+    </div>
+    <div class="header-links">
+      <a href="index.html" class="header-link">⚡ Web Flasher</a>
+      <a href="badge.html" class="header-link">🪪 Badge Studio</a>
+      <a href="https://github.com" class="header-link" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <div class="hero">
+      <h1>Unified Multi-Tool Configurator</h1>
+      <p>Configure Photos, News feeds, Quotes, Weather, Badges, and Wi-Fi wirelessly over Bluetooth (BLE) or via USB Serial.</p>
+    </div>
+
+    <!-- Connection Bar -->
+    <div class="conn-card">
+      <div class="conn-actions">
+        <button id="btnBle" class="btn btn-primary" onclick="toggleBle()">
+          📶 Connect Bluetooth (BLE)
+        </button>
+        <button id="btnSerial" class="btn btn-secondary" onclick="toggleSerial()">
+          🔌 Connect USB Serial
+        </button>
+        <button class="btn btn-success" onclick="readAllFromDevice()">
+          📥 Read from Device
+        </button>
+        <button class="btn btn-primary" onclick="pushAllToDevice()">
+          📤 Push Changes
+        </button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="margin: 0; font-size: 0.75rem;">Active Role:</label>
+          <select id="quickRoleSelect" style="width: auto; padding: 6px 10px; font-size: 0.82rem;" onchange="switchRole(this.value)">
+            <option value="0">🌤️ Weather</option>
+            <option value="1">🖼️ Photo Frame</option>
+            <option value="2">📅 Quotes / Cal</option>
+            <option value="3">🪪 Smart Badge</option>
+            <option value="4">📰 News Reader</option>
+          </select>
+        </div>
+        <div id="connStatus" class="status-badge offline">
+          <span class="dot red"></span> Disconnected
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs for Tools -->
+    <div class="tools-nav">
+      <button class="tool-tab active" onclick="selectTab('photo', this)">🖼️ Photo Frame</button>
+      <button class="tool-tab" onclick="selectTab('news', this)">📰 News Reader</button>
+      <button class="tool-tab" onclick="selectTab('quotes', this)">📅 Quotes & Cal</button>
+      <button class="tool-tab" onclick="selectTab('weather', this)">🌤️ Weather Station</button>
+      <button class="tool-tab" onclick="selectTab('badge', this)">🪪 Smart Badge</button>
+      <button class="tool-tab" onclick="selectTab('wifi', this)">📶 Wi-Fi & System</button>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid-2">
+
+      <!-- Left Column: Tool Config Panels -->
+      <div class="card">
+        
+        <!-- 1. PHOTO / PICTURE FRAME PANEL -->
+        <div id="panelPhoto" class="tool-panel">
+          <div class="card-header">
+            <div class="card-title"><span>🖼️</span><span>Photo & Bitmap Frame</span></div>
+            <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 8px;" onclick="loadSamplePhoto()">Sample Photo</button>
+          </div>
+          <div class="form-group">
+            <label>Select Image File (PNG / JPG / WebP)</label>
+            <input type="file" id="photoInput" accept="image/*" onchange="handlePhotoUpload(this.files[0])">
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label>Brightness</label>
+              <input type="range" id="photoBrightness" min="-100" max="100" value="0" oninput="processPhoto()">
+            </div>
+            <div class="form-group">
+              <label>Contrast</label>
+              <input type="range" id="photoContrast" min="50" max="250" value="100" oninput="processPhoto()">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Photo Caption (Shown in bottom corner)</label>
+            <input type="text" id="photoCaption" placeholder="Summer 2026 • Road Trip" oninput="processPhoto()">
+          </div>
+          <div style="margin-top: 16px;">
+            <button class="btn btn-primary btn-block" onclick="sendPhotoToDevice()">
+              📤 Send Photo to E-Paper (Bluetooth / Serial)
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. NEWS READER PANEL -->
+        <div id="panelNews" class="tool-panel" style="display: none;">
+          <div class="card-header">
+            <div class="card-title"><span>📰</span><span>News Reader Config</span></div>
+            <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 8px;" onclick="sendCmd('NEXT')">Next Article ➡️</button>
+          </div>
+          <div class="form-group">
+            <label>Feed Provider</label>
+            <select id="newsSource" onchange="updateNewsPreview()">
+              <option value="0">Hacker News (Top Stories)</option>
+              <option value="1">Reddit (Tech & Programming)</option>
+              <option value="2">Custom RSS Feed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Subreddit Name (for Reddit provider)</label>
+            <input type="text" id="newsSub" value="technology" oninput="updateNewsPreview()">
+          </div>
+          <div class="form-group">
+            <label>Custom RSS Feed URL (for RSS provider)</label>
+            <input type="text" id="newsRss" value="https://feeds.bbci.co.uk/news/rss.xml" oninput="updateNewsPreview()">
+          </div>
+          <div style="margin-top: 16px;">
+            <button class="btn btn-primary btn-block" onclick="pushAllToDevice()">
+              📤 Save News Config (Bluetooth / Serial)
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. QUOTES & CALENDAR PANEL -->
+        <div id="panelQuotes" class="tool-panel" style="display: none;">
+          <div class="card-header">
+            <div class="card-title"><span>📅</span><span>Quotes & Daily Calendar</span></div>
+            <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 8px;" onclick="sendCmd('NEXT')">Next Quote ➡️</button>
+          </div>
+          <div class="form-group">
+            <label>Calendar Category</label>
+            <select id="quoteCategory" onchange="updateQuotesPreview()">
+              <option value="0">🏛️ Daily Stoic Philosophy</option>
+              <option value="1">📖 Word of the Day (Vocab)</option>
+              <option value="2">📜 This Day in History</option>
+              <option value="3">✍️ Custom Personal Quote / Affirmation</option>
+            </select>
+          </div>
+          <div id="customQuoteBox" style="display: none;">
+            <div class="form-group">
+              <label>Custom Quote Text</label>
+              <textarea id="customQuoteText" rows="3" placeholder="Stay hungry, stay foolish." oninput="updateQuotesPreview()"></textarea>
+            </div>
+            <div class="row">
+              <div class="form-group">
+                <label>Author / Speaker</label>
+                <input type="text" id="customQuoteAuthor" placeholder="Steve Jobs" oninput="updateQuotesPreview()">
+              </div>
+              <div class="form-group">
+                <label>Topic / Theme</label>
+                <input type="text" id="customQuoteTheme" placeholder="Innovation" oninput="updateQuotesPreview()">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 16px;">
+            <button class="btn btn-primary btn-block" onclick="pushAllToDevice()">
+              📤 Save Quote Settings (Bluetooth / Serial)
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. WEATHER STATION PANEL -->
+        <div id="panelWeather" class="tool-panel" style="display: none;">
+          <div class="card-header">
+            <div class="card-title"><span>🌤️</span><span>Weather Station Settings</span></div>
+            <button class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 8px;" onclick="useGeoLocation()">📍 Use My Location</button>
+          </div>
+          <div class="form-group">
+            <label>City / Location Name</label>
+            <input type="text" id="weatherLoc" value="Sydney" oninput="updateWeatherPreview()">
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label>Latitude</label>
+              <input type="text" id="weatherLat" value="-33.8688" oninput="updateWeatherPreview()">
+            </div>
+            <div class="form-group">
+              <label>Longitude</label>
+              <input type="text" id="weatherLon" value="151.2093" oninput="updateWeatherPreview()">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Units</label>
+            <select id="weatherUnits" onchange="updateWeatherPreview()">
+              <option value="metric">Metric (°C, km/h)</option>
+              <option value="imperial">Imperial (°F, mph)</option>
+            </select>
+          </div>
+          <div style="margin-top: 16px;">
+            <button class="btn btn-primary btn-block" onclick="pushAllToDevice()">
+              📤 Save Weather Config (Bluetooth / Serial)
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. SMART BADGE PANEL -->
+        <div id="panelBadge" class="tool-panel" style="display: none;">
+          <div class="card-header">
+            <div class="card-title"><span>🪪</span><span>Smart Badge Config</span></div>
+            <a href="badge.html" class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 8px;">Open Full Studio ↗</a>
+          </div>
+          <div class="form-group">
+            <label>Badge Profile</label>
+            <select id="badgeSubMode" onchange="updateBadgePreview()">
+              <option value="0">🎟️ Conference Attendee</option>
+              <option value="1">🧳 Luggage Tag</option>
+              <option value="2">🛑 Status Placard</option>
+            </select>
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" id="badgeName" value="Alex Rivers" oninput="updateBadgePreview()">
+            </div>
+            <div class="form-group">
+              <label>Handle / Tag</label>
+              <input type="text" id="badgeHandle" value="@alexrivers" oninput="updateBadgePreview()">
+            </div>
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label>Job Title</label>
+              <input type="text" id="badgeTitle" value="Systems Architect" oninput="updateBadgePreview()">
+            </div>
+            <div class="form-group">
+              <label>Company</label>
+              <input type="text" id="badgeComp" value="Acme Corp" oninput="updateBadgePreview()">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>QR URL</label>
+            <input type="text" id="badgeQr" value="https://github.com" oninput="updateBadgePreview()">
+          </div>
+          <div style="margin-top: 16px;">
+            <button class="btn btn-primary btn-block" onclick="pushAllToDevice()">
+              📤 Save Badge Config (Bluetooth / Serial)
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. WI-FI & SYSTEM PANEL -->
+        <div id="panelWifi" class="tool-panel" style="display: none;">
+          <div class="card-header">
+            <div class="card-title"><span>📶</span><span>Wi-Fi & System Control</span></div>
+            <button class="btn btn-danger" style="font-size: 0.75rem; padding: 4px 8px;" onclick="sendCmd('REBOOT')">Reboot Device</button>
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label>Wi-Fi SSID</label>
+              <input type="text" id="wifiSsid" placeholder="HomeNetwork">
+            </div>
+            <div class="form-group">
+              <label>Wi-Fi Password</label>
+              <input type="password" id="wifiPass" placeholder="Secret">
+            </div>
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label>Network Mode</label>
+              <select id="wifiMode">
+                <option value="1">Home Router (Station)</option>
+                <option value="0">Self-Hosted AP (EPaper-Hub)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Power Saving</label>
+              <select id="sysPower">
+                <option value="0">Always On (Continuous Web/BLE)</option>
+                <option value="1">Deep Sleep Power Saving</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top: 16px; display: flex; gap: 10px;">
+            <button class="btn btn-primary" style="flex: 1;" onclick="pushAllToDevice()">
+              📤 Save Wi-Fi & System
+            </button>
+            <button class="btn btn-secondary" style="flex: 1;" onclick="sendCmd('REFRESH')">
+              🔄 Force E-Paper Redraw
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Live E-Paper Canvas Simulation & Terminal -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>📟</span>
+            <span id="previewTitle">2.13" E-Paper Live Simulation</span>
+          </div>
+          <span style="font-size: 0.78rem; color: var(--text-dim);">250 × 122 Monochrome</span>
+        </div>
+
+        <div class="epaper-stage">
+          <div class="epaper-bezel">
+            <canvas id="previewCanvas" width="250" height="122"></canvas>
+          </div>
+          <div class="screen-meta">
+            <span>LilyGo TTGO T5 V2.3.1</span>
+            <span id="canvasRoleBadge">Active Role: Photo</span>
+          </div>
+        </div>
+
+        <!-- Terminal / Transfer Monitor -->
+        <div class="terminal-box">
+          <div class="terminal-header">
+            <span>Device Console (BLE & Serial)</span>
+            <button style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;" onclick="clearLog()">Clear</button>
+          </div>
+          <div id="logConsole" class="terminal-body">[Studio] Connect via Bluetooth or USB Serial to read or configure any tool.</div>
+          <div class="terminal-input-bar">
+            <input type="text" id="termCmd" placeholder="Send serial command (e.g. HELP, REFRESH, NEXT, REBOOT, ROLE:0)..." onkeydown="if(event.key==='Enter') sendPromptCmd()">
+            <button class="btn btn-secondary" style="border-radius: 0; padding: 0 14px; border: none; border-left: 1px solid #1c273e;" onclick="sendPromptCmd()">Send</button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // App State
+    let activeTool = 'photo';
+    let serialPort = null;
+    let serialReader = null;
+    let serialKeepReading = false;
+    let bleDevice = null;
+    let bleServer = null;
+    let bleConfigChar = null;
+    let bleCmdChar = null;
+    let blePhotoChar = null;
+    let bleStatusChar = null;
+
+    let processedBitmap = null; // Uint8Array(3813 bytes)
+    let rawImageObj = null;
+
+    // UUIDs
+    const BLE_SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+    const BLE_CHAR_CONFIG_UUID = '12345678-1234-5678-1234-56789abcdef1';
+    const BLE_CHAR_CMD_UUID = '12345678-1234-5678-1234-56789abcdef2';
+    const BLE_CHAR_PHOTO_UUID = '12345678-1234-5678-1234-56789abcdef3';
+    const BLE_CHAR_STATUS_UUID = '12345678-1234-5678-1234-56789abcdef4';
+
+    // Tab Switching
+    function selectTab(tab, btn) {
+      activeTool = tab;
+      document.querySelectorAll('.tool-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      document.querySelectorAll('.tool-panel').forEach(p => p.style.display = 'none');
+      const panelId = 'panel' + tab.charAt(0).toUpperCase() + tab.slice(1);
+      const el = document.getElementById(panelId);
+      if (el) el.style.display = 'block';
+
+      // Update Canvas
+      renderActiveCanvas();
+    }
+
+    // Role Quick Switcher
+    async function switchRole(roleVal) {
+      log(`[Role] Switching active role to: ${roleVal}`);
+      await sendCmd(`ROLE:${roleVal}`);
+    }
+
+    // ==========================================
+    // Bluetooth (BLE) Connection
+    // ==========================================
+    async function toggleBle() {
+      if (bleDevice && bleDevice.gatt.connected) {
+        bleDevice.gatt.disconnect();
+        updateConnStatus(false, 'Disconnected');
+        return;
+      }
+
+      if (!('bluetooth' in navigator)) {
+        alert('Web Bluetooth is not supported in this browser. Please use Google Chrome or Microsoft Edge.');
+        return;
+      }
+
+      try {
+        log('[BLE] Scanning for LilyGo E-Display...');
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'LilyGo' }, { namePrefix: 'edisplay' }],
+          optionalServices: [BLE_SERVICE_UUID]
+        });
+
+        bleDevice.addEventListener('gattserverdisconnected', () => {
+          updateConnStatus(false, 'BLE Disconnected');
+          log('[BLE] Device disconnected.');
+        });
+
+        log('[BLE] Connecting to GATT Server...');
+        bleServer = await bleDevice.gatt.connect();
+        const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+
+        bleConfigChar = await service.getCharacteristic(BLE_CHAR_CONFIG_UUID);
+        bleCmdChar = await service.getCharacteristic(BLE_CHAR_CMD_UUID);
+        blePhotoChar = await service.getCharacteristic(BLE_CHAR_PHOTO_UUID);
+        bleStatusChar = await service.getCharacteristic(BLE_CHAR_STATUS_UUID);
+
+        updateConnStatus(true, `BLE (${bleDevice.name})`);
+        log(`[BLE] Connected successfully to ${bleDevice.name}!`);
+
+        // Automatically read configuration
+        setTimeout(readAllFromDevice, 400);
+      } catch (err) {
+        log(`[BLE Error] ${err.message}`);
+        updateConnStatus(false, 'Disconnected');
+      }
+    }
+
+    // ==========================================
+    // USB Web Serial Connection
+    // ==========================================
+    async function toggleSerial() {
+      if (serialPort) {
+        serialKeepReading = false;
+        if (serialReader) {
+          try { await serialReader.cancel(); } catch (e) {}
+        }
+        if (serialPort) {
+          try { await serialPort.close(); } catch (e) {}
+        }
+        serialPort = null;
+        updateConnStatus(false, 'Disconnected');
+        return;
+      }
+
+      if (!('serial' in navigator)) {
+        alert('Web Serial is not supported in this browser. Please use Chrome or Edge.');
+        return;
+      }
+
+      try {
+        serialPort = await navigator.serial.requestPort();
+        await serialPort.open({ baudRate: 115200 });
+        updateConnStatus(true, 'USB Serial (115200 Baud)');
+        log('[Serial] Connected over USB.');
+        startSerialReadLoop();
+        setTimeout(readAllFromDevice, 400);
+      } catch (err) {
+        log(`[Serial Error] ${err.message}`);
+        updateConnStatus(false, 'Disconnected');
+      }
+    }
+
+    async function startSerialReadLoop() {
+      serialKeepReading = true;
+      const textDecoder = new TextDecoderStream();
+      serialPort.readable.pipeTo(textDecoder.writable);
+      serialReader = textDecoder.readable.getReader();
+
+      let buffer = '';
+      try {
+        while (serialKeepReading) {
+          const { value, done } = await serialReader.read();
+          if (done) break;
+          if (value) {
+            buffer += value;
+            let lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (let line of lines) {
+              line = line.trim();
+              if (line) handleIncomingSerialLine(line);
+            }
+          }
+        }
+      } catch (err) {
+        log(`[Serial Closed] ${err.message}`);
+      } finally {
+        serialReader.releaseLock();
+      }
+    }
+
+    function handleIncomingSerialLine(line) {
+      log(`<< [Serial] ${line}`);
+      if (line.startsWith('CONFIG:')) {
+        try {
+          const data = JSON.parse(line.substring(7));
+          populateAllFieldsFromData(data);
+          log('[Success] Loaded all device settings from USB Serial!');
+        } catch (e) {}
+      } else if (line.startsWith('{')) {
+        try {
+          const data = JSON.parse(line);
+          populateAllFieldsFromData(data);
+        } catch (e) {}
+      }
+    }
+
+    async function sendSerialText(text) {
+      if (!serialPort || !serialPort.writable) return false;
+      const textEncoder = new TextEncoderStream();
+      textEncoder.readable.pipeTo(serialPort.writable);
+      const writer = textEncoder.writable.getWriter();
+      await writer.write(text + '\n');
+      writer.releaseLock();
+      log(`>> [Serial Sent] ${text}`);
+      return true;
+    }
+
+    // ==========================================
+    // Unified Read / Write
+    // ==========================================
+    async function readAllFromDevice() {
+      log('[Action] Requesting unified configuration from device...');
+
+      // 1. Over BLE
+      if (bleConfigChar) {
+        try {
+          const val = await bleConfigChar.readValue();
+          const jsonStr = new TextDecoder('utf-8').decode(val);
+          const data = JSON.parse(jsonStr);
+          populateAllFieldsFromData(data);
+          log('[BLE] Read full device configuration successfully!');
+          return;
+        } catch (e) {
+          log(`[BLE Read Error] ${e.message}`);
+        }
+      }
+
+      // 2. Over USB Serial
+      if (serialPort) {
+        await sendSerialText('GET_CONFIG');
+        return;
+      }
+
+      // 3. Over Wi-Fi
+      const ip = prompt('Device not connected via BLE or USB. Enter ESP32 Wi-Fi IP to read via HTTP:');
+      if (ip) {
+        try {
+          const resp = await fetch(`http://${ip}/api/status`);
+          const data = await resp.json();
+          populateAllFieldsFromData(data);
+          log(`[Wi-Fi] Read settings from http://${ip}`);
+        } catch (e) {
+          log(`[Wi-Fi Error] ${e.message}`);
+        }
+      }
+    }
+
+    function populateAllFieldsFromData(data) {
+      if (data.role !== undefined) {
+        document.getElementById('quickRoleSelect').value = data.role;
+      }
+
+      // Weather
+      if (data.weather) {
+        if (data.weather.loc) document.getElementById('weatherLoc').value = data.weather.loc;
+        if (data.weather.lat) document.getElementById('weatherLat').value = data.weather.lat;
+        if (data.weather.lon) document.getElementById('weatherLon').value = data.weather.lon;
+        if (data.weather.units) document.getElementById('weatherUnits').value = data.weather.units;
+      }
+
+      // News
+      if (data.news) {
+        if (data.news.source !== undefined) document.getElementById('newsSource').value = data.news.source;
+        if (data.news.sub) document.getElementById('newsSub').value = data.news.sub;
+        if (data.news.rss) document.getElementById('newsRss').value = data.news.rss;
+      }
+
+      // Calendar
+      if (data.calendar) {
+        if (data.calendar.category !== undefined) document.getElementById('quoteCategory').value = data.calendar.category;
+      }
+
+      // Badge
+      if (data.badge) {
+        if (data.badge.submode !== undefined) document.getElementById('badgeSubMode').value = data.badge.submode;
+        if (data.badge.name) document.getElementById('badgeName').value = data.badge.name;
+        if (data.badge.handle) document.getElementById('badgeHandle').value = data.badge.handle;
+        if (data.badge.title) document.getElementById('badgeTitle').value = data.badge.title;
+        if (data.badge.comp) document.getElementById('badgeComp').value = data.badge.comp;
+        if (data.badge.qr) document.getElementById('badgeQr').value = data.badge.qr;
+      }
+
+      // Wi-Fi
+      if (data.wifi) {
+        if (data.wifi.ssid) document.getElementById('wifiSsid').value = data.wifi.ssid;
+        if (data.wifi.mode !== undefined) document.getElementById('wifiMode').value = data.wifi.mode;
+      }
+
+      renderActiveCanvas();
+    }
+
+    async function pushAllToDevice() {
+      const payload = {
+        role: parseInt(document.getElementById('quickRoleSelect').value, 10),
+        weather: {
+          loc: document.getElementById('weatherLoc').value,
+          lat: document.getElementById('weatherLat').value,
+          lon: document.getElementById('weatherLon').value,
+          units: document.getElementById('weatherUnits').value
+        },
+        news: {
+          source: parseInt(document.getElementById('newsSource').value, 10),
+          sub: document.getElementById('newsSub').value,
+          rss: document.getElementById('newsRss').value
+        },
+        calendar: {
+          category: parseInt(document.getElementById('quoteCategory').value, 10)
+        },
+        badge: {
+          submode: parseInt(document.getElementById('badgeSubMode').value, 10),
+          name: document.getElementById('badgeName').value,
+          handle: document.getElementById('badgeHandle').value,
+          title: document.getElementById('badgeTitle').value,
+          comp: document.getElementById('badgeComp').value,
+          qr: document.getElementById('badgeQr').value
+        },
+        wifi: {
+          ssid: document.getElementById('wifiSsid').value,
+          pass: document.getElementById('wifiPass').value,
+          mode: parseInt(document.getElementById('wifiMode').value, 10)
+        }
+      };
+
+      const jsonStr = JSON.stringify(payload);
+
+      // 1. Over BLE
+      if (bleConfigChar) {
+        try {
+          log('[BLE] Writing configuration to device...');
+          await bleConfigChar.writeValue(new TextEncoder().encode(jsonStr));
+          log('[BLE] Configuration written successfully! Screen refreshing...');
+          alert('Configuration updated over Bluetooth!');
+          return;
+        } catch (e) {
+          log(`[BLE Write Error] ${e.message}`);
+        }
+      }
+
+      // 2. Over USB Serial
+      if (serialPort) {
+        await sendSerialText('CONFIG:' + jsonStr);
+        alert('Configuration sent over USB Serial! Screen refreshing...');
+        return;
+      }
+
+      // 3. Over Wi-Fi
+      const ip = prompt('Device not connected via BLE or USB. Enter ESP32 Wi-Fi IP to send via HTTP:');
+      if (ip) {
+        try {
+          await fetch(`http://${ip}/api/role`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ role: payload.role })
+          });
+          alert('Settings pushed via Wi-Fi!');
+        } catch (e) {
+          log(`[Wi-Fi Error] ${e.message}`);
+        }
+      }
+    }
+
+    async function sendCmd(cmd) {
+      if (bleCmdChar) {
+        await bleCmdChar.writeValue(new TextEncoder().encode(cmd));
+        log(`[BLE Cmd Sent] ${cmd}`);
+        return;
+      }
+      if (serialPort) {
+        await sendSerialText(cmd);
+        return;
+      }
+      alert('Connect via Bluetooth or USB Serial first!');
+    }
+
+    function sendPromptCmd() {
+      const input = document.getElementById('termCmd');
+      const val = input.value.trim();
+      if (!val) return;
+      sendCmd(val);
+      input.value = '';
+    }
+
+    // ==========================================
+    // Photo Dithering & Bluetooth / Serial Transfer
+    // ==========================================
+    function handlePhotoUpload(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          rawImageObj = img;
+          processPhoto();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function loadSamplePhoto() {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        rawImageObj = img;
+        processPhoto();
+      };
+      img.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='250' height='122' viewBox='0 0 250 122'><rect width='250' height='122' fill='%23223'/><circle cx='125' cy='61' r='40' fill='%23fff'/><path d='M20,110 Q125,20 230,110' stroke='%23bbb' stroke-width='4' fill='none'/></svg>";
+    }
+
+    function processPhoto() {
+      if (!rawImageObj) return;
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Create offscreen canvas for scaling
+      const off = document.createElement('canvas');
+      off.width = 250;
+      off.height = 122;
+      const offCtx = off.getContext('2d');
+
+      // Draw and adjust aspect ratio
+      offCtx.drawImage(rawImageObj, 0, 0, 250, 122);
+      const imgData = offCtx.getImageData(0, 0, 250, 122);
+      const d = imgData.data;
+
+      // Adjust brightness & contrast
+      const bVal = parseInt(document.getElementById('photoBrightness').value, 10);
+      const cVal = parseInt(document.getElementById('photoContrast').value, 10) / 100.0;
+
+      // Grayscale buffer for Floyd-Steinberg dithering
+      const gray = new Float32Array(250 * 122);
+      for (let i = 0; i < d.length; i += 4) {
+        let lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+        lum = (lum - 128) * cVal + 128 + bVal;
+        gray[i / 4] = Math.max(0, Math.min(255, lum));
+      }
+
+      // Floyd-Steinberg error diffusion
+      const w = 250;
+      const h = 122;
+      const bitBuffer = new Uint8Array(Math.ceil((w * h) / 8));
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          const oldVal = gray[idx];
+          const newVal = oldVal < 128 ? 0 : 255;
+          const err = oldVal - newVal;
+
+          // Pack 1-bit monochrome (0=black, 1=white)
+          const bitIdx = idx;
+          const byteIdx = Math.floor(bitIdx / 8);
+          const bitPos = 7 - (bitIdx % 8);
+          if (newVal === 255) {
+            bitBuffer[byteIdx] |= (1 << bitPos);
+          } else {
+            bitBuffer[byteIdx] &= ~(1 << bitPos);
+          }
+
+          // Error distribution
+          if (x + 1 < w) gray[idx + 1] += err * (7/16);
+          if (x - 1 >= 0 && y + 1 < h) gray[idx + w - 1] += err * (3/16);
+          if (y + 1 < h) gray[idx + w] += err * (5/16);
+          if (x + 1 < w && y + 1 < h) gray[idx + w + 1] += err * (1/16);
+        }
+      }
+
+      processedBitmap = bitBuffer;
+
+      // Render to main canvas
+      ctx.fillStyle = '#f4f4f0';
+      ctx.fillRect(0, 0, 250, 122);
+      ctx.fillStyle = '#111111';
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const bitIdx = y * w + x;
+          const byteIdx = Math.floor(bitIdx / 8);
+          const bitPos = 7 - (bitIdx % 8);
+          const isWhite = (bitBuffer[byteIdx] & (1 << bitPos)) !== 0;
+          if (!isWhite) {
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+      }
+
+      // Optional caption
+      const caption = document.getElementById('photoCaption').value.trim();
+      if (caption) {
+        ctx.fillStyle = 'rgba(244, 244, 240, 0.9)';
+        ctx.fillRect(4, 102, 242, 16);
+        ctx.fillStyle = '#111111';
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(caption, 8, 114);
+      }
+    }
+
+    async function sendPhotoToDevice() {
+      if (!processedBitmap) {
+        alert('Please upload or select an image first!');
+        return;
+      }
+      const caption = document.getElementById('photoCaption').value.trim();
+      const totalBytes = processedBitmap.length;
+      log(`[Photo Transfer] Preparing to transmit ${totalBytes} bytes...`);
+
+      // 1. Over BLE
+      if (blePhotoChar) {
+        try {
+          const header = `START:${totalBytes}:${caption}`;
+          log(`[BLE Photo] Sending header: '${header}'`);
+          await blePhotoChar.writeValue(new TextEncoder().encode(header));
+
+          // Send in 256-byte chunks
+          const chunkSize = 256;
+          for (let offset = 0; offset < totalBytes; offset += chunkSize) {
+            const chunk = processedBitmap.slice(offset, offset + chunkSize);
+            await blePhotoChar.writeValue(chunk);
+            log(`[BLE Photo] Sent chunk ${offset} / ${totalBytes} (${Math.round((offset/totalBytes)*100)}%)`);
+            await new Promise(r => setTimeout(r, 40));
+          }
+          log('[BLE Photo] Transfer complete! Image appearing on e-paper screen.');
+          alert('Photo transferred over Bluetooth! E-Paper updating.');
+          return;
+        } catch (e) {
+          log(`[BLE Photo Error] ${e.message}`);
+        }
+      }
+
+      // 2. Over USB Serial
+      if (serialPort) {
+        await sendSerialText(`PHOTO_START:${totalBytes}:${caption}`);
+        log('[Serial Photo] Header sent over USB Serial.');
+        return;
+      }
+
+      alert('Please connect via Bluetooth or USB Serial to transfer pictures!');
+    }
+
+    // ==========================================
+    // Canvas Simulators for other tools
+    // ==========================================
+    function renderActiveCanvas() {
+      const badge = document.getElementById('canvasRoleBadge');
+      badge.textContent = `Active View: ${activeTool.toUpperCase()}`;
+
+      if (activeTool === 'photo') {
+        if (processedBitmap) processPhoto();
+        else loadSamplePhoto();
+      } else if (activeTool === 'news') {
+        updateNewsPreview();
+      } else if (activeTool === 'quotes') {
+        updateQuotesPreview();
+      } else if (activeTool === 'weather') {
+        updateWeatherPreview();
+      } else if (activeTool === 'badge') {
+        updateBadgePreview();
+      } else {
+        drawGenericScreen('SYSTEM & WI-FI', 'Connected Mode: Station', 'Press buttons to trigger actions');
+      }
+    }
+
+    function updateNewsPreview() {
+      const src = document.getElementById('newsSource').value;
+      const sub = document.getElementById('newsSub').value;
+      let title = "BREAKING: Next-Gen RISC-V SoC Architecture Unveiled";
+      let meta = "285 pts • 142 comments";
+      let sourceName = "HACKER NEWS";
+      if (src === "1") {
+        sourceName = "r/" + sub;
+        title = "Open-Source E-Paper Smart Display firmware released";
+      } else if (src === "2") {
+        sourceName = "RSS FEED";
+        title = "Global Tech Summit announces new low-power IoT standards";
+      }
+
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#f4f4f0';
+      ctx.fillRect(0, 0, 250, 122);
+      ctx.strokeStyle = '#111111';
+      ctx.strokeRect(0, 0, 250, 122);
+
+      // Header Tag
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(4, 4, 110, 16);
+      ctx.fillStyle = '#f4f4f0';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText(sourceName, 10, 16);
+
+      ctx.fillStyle = '#111111';
+      ctx.font = '9px monospace';
+      ctx.fillText('STORY #1 OF 10', 160, 16);
+
+      ctx.beginPath();
+      ctx.moveTo(4, 23);
+      ctx.lineTo(246, 23);
+      ctx.stroke();
+
+      // Headline
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      ctx.fillText(title.substring(0, 38), 6, 42);
+      ctx.fillText(title.substring(38, 76), 6, 58);
+
+      // Meta
+      ctx.font = '10px monospace';
+      ctx.fillText(meta, 6, 84);
+
+      // Bottom Bar
+      ctx.beginPath();
+      ctx.moveTo(4, 100);
+      ctx.lineTo(246, 100);
+      ctx.stroke();
+      ctx.font = '8px monospace';
+      ctx.fillText('UPDATED LIVE • BAT: 4.12V [95%]', 6, 114);
+    }
+
+    function updateQuotesPreview() {
+      const cat = document.getElementById('quoteCategory').value;
+      document.getElementById('customQuoteBox').style.display = (cat === '3') ? 'block' : 'none';
+
+      let title = "DAILY STOIC";
+      let author = "Marcus Aurelius";
+      let quote = "You have power over your mind - not outside events. Realize this, and you will find strength.";
+
+      if (cat === '1') {
+        title = "WORD OF DAY";
+        author = "ephemeral (adj.)";
+        quote = "Lasting for a very short time; transitory; fleeting.";
+      } else if (cat === '2') {
+        title = "ON THIS DAY";
+        author = "September 14";
+        quote = "Major milestones in science and global exploration recorded on this calendar day.";
+      } else if (cat === '3') {
+        title = document.getElementById('customQuoteTheme').value.trim() || "PERSONAL GOAL";
+        author = document.getElementById('customQuoteAuthor').value.trim() || "Author";
+        quote = document.getElementById('customQuoteText').value.trim() || "Stay focused on what truly matters.";
+      }
+
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#f4f4f0';
+      ctx.fillRect(0, 0, 250, 122);
+      ctx.strokeStyle = '#111111';
+      ctx.strokeRect(0, 0, 250, 122);
+
+      ctx.fillStyle = '#111111';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(title, 8, 16);
+
+      ctx.font = 'italic 10px -apple-system, sans-serif';
+      ctx.fillText(author, 8, 30);
+
+      ctx.beginPath();
+      ctx.moveTo(8, 35);
+      ctx.lineTo(242, 35);
+      ctx.stroke();
+
+      ctx.font = '11px -apple-system, serif';
+      ctx.fillText(quote.substring(0, 42), 8, 54);
+      ctx.fillText(quote.substring(42, 85), 8, 70);
+      ctx.fillText(quote.substring(85, 128), 8, 86);
+
+      ctx.font = '8px monospace';
+      ctx.fillText('DAY 257 • WEEK 37 • 2026', 8, 114);
+    }
+
+    function updateWeatherPreview() {
+      const loc = document.getElementById('weatherLoc').value || 'Sydney';
+      const units = document.getElementById('weatherUnits').value;
+      const unitSym = units === 'imperial' ? '°F' : '°C';
+
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#f4f4f0';
+      ctx.fillRect(0, 0, 250, 122);
+      ctx.strokeStyle = '#111111';
+      ctx.strokeRect(0, 0, 250, 122);
+
+      // Location
+      ctx.fillStyle = '#111111';
+      ctx.font = 'bold 13px -apple-system, sans-serif';
+      ctx.fillText(loc.toUpperCase(), 8, 18);
+
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillText('Partly Cloudy', 8, 32);
+
+      // Temp
+      ctx.font = 'bold 36px -apple-system, sans-serif';
+      ctx.fillText('21' + unitSym, 8, 70);
+
+      // Details
+      ctx.font = '9px monospace';
+      ctx.fillText('HUMIDITY: 62%', 8, 88);
+      ctx.fillText('WIND: 14 km/h', 8, 100);
+
+      // Mini 3-day forecast on right
+      ctx.beginPath();
+      ctx.moveTo(140, 8);
+      ctx.lineTo(140, 114);
+      ctx.stroke();
+
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText('TOMORROW  23° Sunny', 148, 28);
+      ctx.fillText('WEDNESDAY 19° Rain', 148, 54);
+      ctx.fillText('THURSDAY  22° Clear', 148, 80);
+
+      ctx.font = '8px monospace';
+      ctx.fillText('OPEN-METEO • BAT 95%', 148, 108);
+    }
+
+    function updateBadgePreview() {
+      const name = document.getElementById('badgeName').value || 'Alex Rivers';
+      const handle = document.getElementById('badgeHandle').value || '@alexrivers';
+      const title = document.getElementById('badgeTitle').value || 'Systems Architect';
+      const comp = document.getElementById('badgeComp').value || 'Acme Corp';
+      const qrUrl = document.getElementById('badgeQr').value || 'https://github.com';
+
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#f4f4f0';
+      ctx.fillRect(0, 0, 250, 122);
+      ctx.strokeStyle = '#111111';
+      ctx.strokeRect(0, 0, 250, 122);
+
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(4, 4, 78, 16);
+      ctx.fillStyle = '#f4f4f0';
+      ctx.font = 'bold 9px -apple-system, sans-serif';
+      ctx.fillText('ATTENDEE', 12, 16);
+
+      ctx.fillStyle = '#111111';
+      ctx.font = '10px monospace';
+      ctx.fillText(handle, 90, 16);
+
+      ctx.beginPath();
+      ctx.moveTo(4, 23);
+      ctx.lineTo(162, 23);
+      ctx.stroke();
+
+      ctx.font = 'bold 15px -apple-system, sans-serif';
+      ctx.fillText(name, 6, 44);
+
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillText(title, 6, 62);
+      ctx.font = 'bold 10px -apple-system, sans-serif';
+      ctx.fillText(comp, 6, 78);
+
+      ctx.font = '9px monospace';
+      ctx.fillText('LilyGo T5 • BAT: 95%', 6, 112);
+
+      // Draw QR
+      try {
+        if (typeof QRCode !== 'undefined' && QRCode.create) {
+          const qr = QRCode.create(qrUrl, { errorCorrectionLevel: 'M' });
+          const modules = qr.modules;
+          const count = modules.size;
+          const tileSize = Math.floor(76 / count);
+          const actualSize = tileSize * count;
+          const ox = 168 + Math.floor((76 - actualSize)/2);
+          const oy = 6 + Math.floor((76 - actualSize)/2);
+          ctx.fillStyle = '#111111';
+          for (let r=0; r<count; r++) {
+            for (let c=0; c<count; c++) {
+              if (modules.get(r, c)) ctx.fillRect(ox + c*tileSize, oy + r*tileSize, tileSize, tileSize);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    function drawGenericScreen(title, line1, line2) {
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#f4f4f0';
+      ctx.fillRect(0, 0, 250, 122);
+      ctx.strokeStyle = '#111111';
+      ctx.strokeRect(0, 0, 250, 122);
+      ctx.fillStyle = '#111111';
+      ctx.font = 'bold 14px -apple-system, sans-serif';
+      ctx.fillText(title, 12, 32);
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillText(line1, 12, 58);
+      ctx.fillText(line2, 12, 78);
+    }
+
+    function useGeoLocation() {
+      if (!('geolocation' in navigator)) {
+        alert('Geolocation not supported.');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(pos => {
+        document.getElementById('weatherLat').value = pos.coords.latitude.toFixed(4);
+        document.getElementById('weatherLon').value = pos.coords.longitude.toFixed(4);
+        updateWeatherPreview();
+        log(`[Geo] Set coordinates to: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+      });
+    }
+
+    // UI Helpers
+    function updateConnStatus(connected, label) {
+      const el = document.getElementById('connStatus');
+      const btnB = document.getElementById('btnBle');
+      const btnS = document.getElementById('btnSerial');
+
+      if (connected) {
+        el.className = 'status-badge online';
+        el.innerHTML = `<span class="dot green"></span> Connected: ${label}`;
+        if (label.includes('BLE')) {
+          btnB.textContent = '❌ Disconnect BLE';
+          btnB.classList.replace('btn-primary', 'btn-secondary');
+        } else if (label.includes('Serial')) {
+          btnS.textContent = '❌ Disconnect Serial';
+          btnS.classList.replace('btn-secondary', 'btn-primary');
+        }
+      } else {
+        el.className = 'status-badge offline';
+        el.innerHTML = `<span class="dot red"></span> ${label}`;
+        btnB.textContent = '📶 Connect Bluetooth (BLE)';
+        btnB.classList.replace('btn-secondary', 'btn-primary');
+        btnS.textContent = '🔌 Connect USB Serial';
+        btnS.classList.replace('btn-primary', 'btn-secondary');
+      }
+    }
+
+    function log(msg) {
+      const box = document.getElementById('logConsole');
+      box.textContent += '\n' + msg;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('logConsole').textContent = '[Studio] Log cleared.';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSamplePhoto();
+    });
+  </script>
+</body>
+</html>

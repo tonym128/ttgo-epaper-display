@@ -53,13 +53,27 @@ You can flash and configure your device in under 60 seconds directly in your web
 6. Click **Install Firmware**.
 7. Once flashing is complete, click **Push Settings to Device** to configure Wi-Fi and location over serial without needing to recompile!
 
-### Live Smart Badge Studio & Configurator
-To configure your attendee badge, luggage tag, or status placard with an interactive live e-paper preview:
+### 🎛️ Unified Device Studio (Bluetooth & USB Serial)
+Configure **all** applications (Photo, News, Quotes/Calendar, Weather, Smart Badge, and Wi-Fi) wirelessly over **Bluetooth Low Energy (BLE)** or via **USB Serial**:
+1. Open the [**Device Studio**](docs/studio.html) in your browser (Chrome, Edge, or Opera).
+2. Connect using either **USB Serial** or **Bluetooth (BLE)** (pair with `TTGO-T5-Hub`).
+3. Click **📥 Read from Device** to pull the live configuration for all applications directly from the ESP32's NVS flash memory.
+4. Customize settings:
+   - **Active App Mode**: Switch between Weather, Picture Frame, Calendar/Quotes, Smart Badge, and News Ticker on the fly.
+   - **Photo Transfer**: Select any image, adjust contrast/dithering with real-time 250×122 e-paper canvas preview, and upload directly to LittleFS over Bluetooth or Serial (no Wi-Fi needed!).
+   - **News Ticker**: Choose between Hacker News, Reddit (custom subreddits), or custom RSS XML feeds.
+   - **Calendar & Quotes**: Set custom daily quotes, author, or Word of the Day.
+   - **Weather Station**: Set city name, latitude, longitude, and temperature units.
+   - **Smart Badge**: Configure name, role, company, contact details, and dynamic QR code.
+   - **Network**: Configure router Wi-Fi credentials or switch to standalone offline mode.
+5. Click **📤 Save to Device** to write settings to non-volatile memory and trigger an immediate e-paper display refresh.
+
+### 🪪 Live Smart Badge Studio
+For a dedicated badge workflow:
 1. Open the [**Smart Badge Studio**](docs/badge.html) in your browser.
 2. Connect via **USB Serial** or **Bluetooth (BLE)**.
-3. Click **📥 Read from Badge** to fetch the current configuration stored in the ESP32's memory.
-4. Edit attendee info, handle, company, phone, notes, or QR code link while viewing the real-time 250×122 canvas preview.
-5. Click **📤 Save & Write to Badge** to update the e-paper display instantly!
+3. Edit attendee info, handle, company, phone, notes, or QR code link while viewing the real-time 250×122 canvas preview.
+4. Click **📤 Save & Write to Badge** to update the e-paper display instantly!
 
 ---
 
@@ -118,19 +132,26 @@ pio device monitor -b 115200
 
 ---
 
-## Serial Configuration Commands
+## Serial & Bluetooth Configuration Protocol
 
-When connected via USB Serial at `115200` baud (or via the browser Web Flasher console), the device accepts live JSON commands:
+When connected via USB Serial at `115200` baud (or via the browser Web Flasher / Device Studio console), the device accepts text and JSON commands:
 
-```text
-CONFIG:{"sta_ssid":"MyNetwork","sta_pass":"MyPassword","role":0,"location":"Tokyo"}
-```
+- `GET_CONFIG` or `GET_ALL` - Dumps the complete unified JSON configuration for all applications.
+- `CONFIG:{"role":1,"news_src":0,...}` - Updates application settings and Wi-Fi preferences in NVS.
+- `ROLE:<0-4>` - Switches the active mode (`0=Weather`, `1=Picture`, `2=Calendar`, `3=Badge`, `4=News`).
+- `NEXT` - Cycles to the next item (article in News, submode in Badge, or refresh in Quotes).
+- `STATUS` - Prints battery level, Wi-Fi IP, and current active role.
+- `REFRESH` - Forces an immediate full e-paper display refresh.
+- `REBOOT` - Restarts the ESP32.
+- `HELP` - Lists all supported serial commands.
+- `PHOTO_START:<bytes>:<caption...>` - Initiates a raw 1-bit bitmap transfer over serial.
 
-Available serial utility commands:
-- `STATUS` - Print battery level, Wi-Fi IP, and current active role.
-- `REFRESH` - Force an e-paper full refresh.
-- `REBOOT` - Restart the ESP32.
-- `HELP` - List all supported serial commands.
+### Bluetooth Low Energy (BLE) Interface
+The Multi-Display Hub advertises as `TTGO-T5-Hub` with service UUID `12345678-1234-5678-1234-56789abcdef0`:
+- **Config Characteristic (`...ef01`, Read/Write)**: Read or write full unified JSON configuration.
+- **Command Characteristic (`...ef02`, Write)**: Send operational commands (`REFRESH`, `NEXT`, `ROLE:X`, `REBOOT`).
+- **Photo Stream Characteristic (`...ef03`, Write)**: Stream 1-bit dithered image chunks directly to LittleFS without Wi-Fi.
+- **Status Characteristic (`...ef04`, Read/Notify)**: Stream live battery voltage, battery percentage, role, and IP.
 
 ---
 
