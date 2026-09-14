@@ -403,7 +403,10 @@
         </button>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span id="firmwareVersionBadge" class="status-badge" style="display: none; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd; font-size: 0.78rem;">
+          FW: --
+        </span>
         <div style="display: flex; align-items: center; gap: 8px;">
           <label style="margin: 0; font-size: 0.75rem;">Active Role:</label>
           <select id="quickRoleSelect" style="width: auto; padding: 6px 10px; font-size: 0.82rem;" onchange="switchRole(this.value)">
@@ -417,6 +420,25 @@
         <div id="connStatus" class="status-badge offline">
           <span class="dot red"></span> Disconnected
         </div>
+      </div>
+    </div>
+
+    <!-- Firmware Update Notification Banner -->
+    <div id="firmwareUpdateBanner" style="display: none; margin-bottom: 20px; padding: 14px 20px; background: linear-gradient(90deg, rgba(234,88,12,0.12), rgba(245,158,11,0.15)); border: 1px solid rgba(245,158,11,0.4); border-radius: 10px; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 1.6rem;">🚀</span>
+        <div>
+          <div style="font-weight: 700; color: #fbbf24; font-size: 0.96rem;">Firmware Update Available</div>
+          <div style="font-size: 0.84rem; color: #cbd5e1; margin-top: 2px;">
+            Your device is running <code id="devVerText" style="color: #f87171; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">v1.0.0</code>. The latest website release is <code id="latestVerText" style="color: #34d399; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">v1.2.0</code>.
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <a href="index.html" class="btn btn-primary" style="background: #f59e0b; border-color: #d97706; color: #000; font-weight: 700; text-decoration: none; padding: 8px 16px; border-radius: 6px;">
+          ⚡ Flash Latest Firmware Now
+        </a>
+        <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="dismissUpdateBanner()">✕ Dismiss</button>
       </div>
     </div>
 
@@ -987,12 +1009,82 @@
         if (data.wifi.mode !== undefined) document.getElementById('wifiMode').value = data.wifi.mode;
       }
 
+      // Power Mode
+      if (data.power !== undefined) {
+        document.getElementById('sysPower').value = data.power;
+      }
+
       // BLE Radio State
       if (data.ble !== undefined) {
         updateBleRadioUI(data.ble === 1 || data.ble === true);
       }
 
+      // Firmware Version Check
+      if (data.version) {
+        checkFirmwareVersion(data.version);
+      }
+
       renderActiveCanvas();
+    }
+
+    function compareSemver(vA, vB) {
+      const parse = (v) => (v || '').toString().replace(/^[^\d]*/, '').split('.').map(n => parseInt(n, 10) || 0);
+      const a = parse(vA);
+      const b = parse(vB);
+      for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        const na = a[i] || 0;
+        const nb = b[i] || 0;
+        if (na > nb) return 1;
+        if (na < nb) return -1;
+      }
+      return 0;
+    }
+
+    async function checkFirmwareVersion(deviceVer) {
+      const verBadge = document.getElementById('firmwareVersionBadge');
+      if (verBadge) {
+        verBadge.style.display = 'inline-flex';
+        verBadge.textContent = `FW: v${deviceVer}`;
+      }
+
+      try {
+        const resp = await fetch('manifest.json?t=' + Date.now());
+        const manifest = await resp.json();
+        const latestVer = manifest.version || '1.2.0';
+
+        const cmp = compareSemver(latestVer, deviceVer);
+        const banner = document.getElementById('firmwareUpdateBanner');
+
+        if (cmp > 0) {
+          // Device version is older than website version
+          document.getElementById('devVerText').textContent = 'v' + deviceVer;
+          document.getElementById('latestVerText').textContent = 'v' + latestVer;
+          banner.style.display = 'flex';
+          if (verBadge) {
+            verBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+            verBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            verBadge.style.color = '#fca5a5';
+            verBadge.textContent = `FW: v${deviceVer} (Update Available)`;
+          }
+          log(`[Update Notice] Device firmware (v${deviceVer}) is outdated. Latest release: v${latestVer}.`);
+        } else {
+          banner.style.display = 'none';
+          if (verBadge) {
+            verBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+            verBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            verBadge.style.color = '#6ee7b7';
+            verBadge.textContent = `FW: v${deviceVer} (Up to Date ✓)`;
+          }
+          log(`[Firmware] Device firmware (v${deviceVer}) is up to date.`);
+        }
+      } catch (e) {
+        console.warn('Could not fetch manifest for version check:', e);
+      }
+    }
+
+    function dismissUpdateBanner() {
+      const b = document.getElementById('firmwareUpdateBanner');
+      if (b) b.style.display = 'none';
     }
 
     let currentBleState = true;
@@ -1035,6 +1127,7 @@
     async function pushAllToDevice() {
       const payload = {
         role: parseInt(document.getElementById('quickRoleSelect').value, 10),
+        power: parseInt(document.getElementById('sysPower').value, 10),
         ble: currentBleState ? 1 : 0,
         weather: {
           loc: document.getElementById('weatherLoc').value,

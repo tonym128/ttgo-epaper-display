@@ -441,6 +441,25 @@
       ⚠️ <strong>Web Serial is not supported in this browser.</strong> Please open this page in <strong>Google Chrome</strong>, <strong>Microsoft Edge</strong>, or <strong>Opera</strong> on desktop to flash or configure your LilyGo ESP32 device.
     </div>
 
+    <!-- Firmware Update Notification Banner -->
+    <div id="firmwareUpdateBanner" style="display: none; margin-bottom: 24px; padding: 14px 20px; background: linear-gradient(90deg, rgba(234,88,12,0.12), rgba(245,158,11,0.15)); border: 1px solid rgba(245,158,11,0.4); border-radius: 10px; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 1.6rem;">🚀</span>
+        <div>
+          <div style="font-weight: 700; color: #fbbf24; font-size: 0.96rem;">Firmware Update Available</div>
+          <div style="font-size: 0.84rem; color: #cbd5e1; margin-top: 2px;">
+            Connected device is running <code id="devVerText" style="color: #f87171; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">v1.0.0</code>. The latest website release is <code id="latestVerText" style="color: #34d399; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">v1.2.0</code>.
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <button class="btn btn-primary" style="background: #f59e0b; border-color: #d97706; color: #000; font-weight: 700; padding: 8px 16px; border-radius: 6px;" onclick="scrollToFlasher()">
+          ⚡ Install Update (Step 1)
+        </button>
+        <button class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="dismissUpdateBanner()">✕ Dismiss</button>
+      </div>
+    </div>
+
     <!-- Two Column Main Layout -->
     <div class="grid-2">
 
@@ -529,7 +548,10 @@
             <span class="card-step">2</span>
             <span>Configure Environment</span>
           </div>
-          <div id="serialStatus" class="status-pill offline"><span class="dot red"></span> Disconnected</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="firmwareVersionBadge" class="status-pill" style="display: none; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd;">FW: --</span>
+            <div id="serialStatus" class="status-pill offline"><span class="dot red"></span> Disconnected</div>
+          </div>
         </div>
 
         <div class="tab-bar">
@@ -789,6 +811,7 @@ BLE_ENABLED="${ble}"
         updateSerialUI(true);
         logTerminal('[Serial] Connected to ESP32 @ 115200 baud.');
         readSerialLoop();
+        setTimeout(() => sendSerialCmd('STATUS'), 500);
       } catch (err) {
         logTerminal(`[Serial Error] ${err.message}`);
         updateSerialUI(false);
@@ -807,6 +830,7 @@ BLE_ENABLED="${ble}"
           if (done) break;
           if (value) {
             logTerminal(value, false);
+            handleIncomingSerialData(value);
           }
         }
       } catch (e) {
@@ -814,6 +838,89 @@ BLE_ENABLED="${ble}"
       } finally {
         serialReader.releaseLock();
       }
+    }
+
+    let serialBuffer = '';
+    function handleIncomingSerialData(chunk) {
+      serialBuffer += chunk;
+      const lines = serialBuffer.split('\n');
+      serialBuffer = lines.pop();
+      for (const line of lines) {
+        const verMatch = line.match(/Version:\s*([0-9]+\.[0-9]+\.[0-9]+)/i);
+        if (verMatch) {
+          checkFirmwareVersion(verMatch[1]);
+        } else if (line.includes('CONFIG:') || line.trim().startsWith('{')) {
+          try {
+            const jsonStr = line.startsWith('CONFIG:') ? line.substring(7) : line;
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.version) {
+              checkFirmwareVersion(parsed.version);
+            }
+          } catch(e) {}
+        }
+      }
+    }
+
+    function compareSemver(vA, vB) {
+      const parse = (v) => (v || '').toString().replace(/^[^\d]*/, '').split('.').map(n => parseInt(n, 10) || 0);
+      const a = parse(vA);
+      const b = parse(vB);
+      for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        const na = a[i] || 0;
+        const nb = b[i] || 0;
+        if (na > nb) return 1;
+        if (na < nb) return -1;
+      }
+      return 0;
+    }
+
+    async function checkFirmwareVersion(deviceVer) {
+      const badge = document.getElementById('firmwareVersionBadge');
+      if (badge) {
+        badge.style.display = 'inline-flex';
+        badge.textContent = `FW: v${deviceVer}`;
+      }
+      try {
+        const resp = await fetch('manifest.json?t=' + Date.now());
+        const manifest = await resp.json();
+        const latestVer = manifest.version || '1.2.0';
+
+        const cmp = compareSemver(latestVer, deviceVer);
+        const banner = document.getElementById('firmwareUpdateBanner');
+
+        if (cmp > 0) {
+          document.getElementById('devVerText').textContent = 'v' + deviceVer;
+          document.getElementById('latestVerText').textContent = 'v' + latestVer;
+          if (banner) banner.style.display = 'flex';
+          if (badge) {
+            badge.style.background = 'rgba(239, 68, 68, 0.2)';
+            badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            badge.style.color = '#fca5a5';
+            badge.textContent = `FW: v${deviceVer} (Update Available)`;
+          }
+          logTerminal(`[Update Notice] Device firmware (v${deviceVer}) is outdated. Latest available is v${latestVer}.`);
+        } else {
+          if (banner) banner.style.display = 'none';
+          if (badge) {
+            badge.style.background = 'rgba(16, 185, 129, 0.15)';
+            badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            badge.style.color = '#6ee7b7';
+            badge.textContent = `FW: v${deviceVer} (Up to Date ✓)`;
+          }
+          logTerminal(`[Firmware] Device firmware (v${deviceVer}) is up to date.`);
+        }
+      } catch (e) {
+        console.warn('Could not fetch manifest for version check:', e);
+      }
+    }
+
+    function dismissUpdateBanner() {
+      const b = document.getElementById('firmwareUpdateBanner');
+      if (b) b.style.display = 'none';
+    }
+
+    function scrollToFlasher() {
+      window.scrollTo({ top: 180, behavior: 'smooth' });
     }
 
     async function sendSerialText(text) {
@@ -852,6 +959,7 @@ BLE_ENABLED="${ble}"
         lat: document.getElementById('cfgLat').value,
         lon: document.getElementById('cfgLon').value,
         units: 'metric',
+        power: 0,
         ble: document.getElementById('cfgBleEn').checked ? 1 : 0
       };
 

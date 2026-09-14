@@ -1,6 +1,10 @@
 #pragma once
 #include <Arduino.h>
 
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "1.2.0"
+#endif
+
 // ==========================================
 // Hardware Pin Mapping (LilyGo TTGO T5 V2.3.1)
 // ==========================================

@@ -15,7 +15,7 @@ static U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 
 void DisplayManager::init() {
     SPI.begin(PIN_EPD_SCK, -1, PIN_EPD_MOSI, PIN_EPD_CS);
-    display.init(115200, true, 2, false);
+    display.init(0, true, 2, false); // 0 disables GxEPD2 serial diagnostics (_PowerOn, _PowerOff)
     display.setRotation(1); // Landscape: 250 x 122
 
     u8g2Fonts.begin(display);

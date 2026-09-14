@@ -136,19 +136,24 @@ void setup() {
     lastHourlyRefresh = millis();
 }
 
+static unsigned long lastActivityTime = 0;
+
 static void handleSerialCommands() {
     if (!Serial.available()) return;
     String line = Serial.readStringUntil('\n');
     line.trim();
     if (line.isEmpty()) return;
+    lastActivityTime = millis();
 
     if (line.equalsIgnoreCase("HELP") || line == "?") {
         Serial.println(F("\n=== LilyGo E-Display Hub Serial Console ==="));
-        Serial.println(F("  STATUS       - Print device status, IP, active role, BLE, battery"));
+        Serial.println(F("  STATUS       - Print device status, IP, active role, BLE, power, battery"));
         Serial.println(F("  GET_CONFIG   - Get complete configuration of ALL tools (JSON)"));
         Serial.println(F("  GET_BADGE    - Get badge configuration (JSON)"));
         Serial.println(F("  BLE:0        - Disable Bluetooth Low Energy (BLE) radio to save power"));
         Serial.println(F("  BLE:1        - Enable Bluetooth Low Energy (BLE) radio"));
+        Serial.println(F("  POWER:0      - Set power mode to Always On (Continuous 24/7)"));
+        Serial.println(F("  POWER:1      - Set power mode to Deep Sleep power saving"));
         Serial.println(F("  ROLE:<0-4>   - Switch active role (0:Weather, 1:Pic, 2:Cal, 3:Badge, 4:News)"));
         Serial.println(F("  NEXT         - Cycle next item (Article / Quote / Badge)"));
         Serial.println(F("  REFRESH      - Force full e-paper screen refresh"));
@@ -160,8 +165,10 @@ static void handleSerialCommands() {
     if (line.equalsIgnoreCase("STATUS")) {
         float battV = getBatteryVoltage();
         int battPct = getBatteryPercent(battV);
-        Serial.printf("[Status] Role: %d, Mode: %s, SSID: %s, IP: %s, BLE: %s, Battery: %.2fV (%d%%)\n",
+        Serial.printf("[Status] Version: %s, Role: %d, Power: %s, Mode: %s, SSID: %s, IP: %s, BLE: %s, Battery: %.2fV (%d%%)\n",
+            FIRMWARE_VERSION,
             (int)WebServerApp::getActiveRole(),
+            WebServerApp::getPowerMode() == POWER_ALWAYS_ON ? "Always On" : "Deep Sleep",
             NetworkManager::isApMode() ? "AP" : "Router",
             NetworkManager::getSSID().c_str(),
             NetworkManager::getIpAddress().c_str(),
@@ -226,6 +233,16 @@ static void handleSerialCommands() {
     if (line.equalsIgnoreCase("BLE:1") || line.equalsIgnoreCase("BLE_ON") || line.equalsIgnoreCase("BLE:ON")) {
         BleManager::setEnabled(true);
         Serial.println(F("[Serial] Bluetooth Low Energy (BLE) ENABLED and advertising."));
+        return;
+    }
+    if (line.equalsIgnoreCase("POWER:0") || line.equalsIgnoreCase("ALWAYS_ON") || line.equalsIgnoreCase("POWER:ALWAYS_ON")) {
+        WebServerApp::setPowerMode(POWER_ALWAYS_ON);
+        Serial.println(F("[Serial] Power mode set to ALWAYS ON (Continuous 24/7). ESP32 will not sleep."));
+        return;
+    }
+    if (line.equalsIgnoreCase("POWER:1") || line.equalsIgnoreCase("DEEP_SLEEP") || line.equalsIgnoreCase("POWER:DEEP_SLEEP") || line.equalsIgnoreCase("POWER_SAVE")) {
+        WebServerApp::setPowerMode(POWER_DEEP_SLEEP);
+        Serial.println(F("[Serial] Power mode set to DEEP SLEEP power saving."));
         return;
     }
     if (line.startsWith("ROLE:")) {
@@ -352,11 +369,12 @@ void loop() {
         }
     }
 
-    // 5. Deep Sleep check (if enabled in settings)
+    // 5. Deep Sleep check (only if explicitly set to POWER_DEEP_SLEEP in settings)
     if (WebServerApp::getPowerMode() == POWER_DEEP_SLEEP) {
-        // Allow 30 seconds of uptime for web requests before sleeping
-        static unsigned long wakeTime = millis();
-        if (millis() - wakeTime > 30000) {
+        if (BleManager::isConnected()) {
+            lastActivityTime = millis(); // Keep alive while Bluetooth client is connected
+        }
+        if (millis() - lastActivityTime > 30000) {
             uint64_t sleepSec = 3600; // 1 hour default
             if (WebServerApp::getActiveRole() == ROLE_CALENDAR) {
                 sleepSec = 86400; // 24 hours for daily calendar

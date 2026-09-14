@@ -226,6 +226,7 @@ void BleManager::updateStatus(float battV, int battPct, const String& ip) {
     doc["batt_pct"] = battPct;
     doc["role"] = (int)WebServerApp::getActiveRole();
     doc["ip"] = ip;
+    doc["version"] = FIRMWARE_VERSION;
 
     String jsonStr;
     serializeJson(doc, jsonStr);
@@ -237,6 +238,7 @@ void BleManager::updateStatus(float battV, int battPct, const String& ip) {
 
 String BleManager::getUnifiedJson() {
     JsonDocument doc;
+    doc["version"] = FIRMWARE_VERSION;
     doc["role"] = (int)WebServerApp::getActiveRole();
     doc["power"] = (int)WebServerApp::getPowerMode();
     doc["ble"] = bleEnabled ? 1 : 0;
@@ -308,6 +310,13 @@ bool BleManager::applyUnifiedJson(const char* jsonStr) {
     if (doc["ble"].is<int>() || doc["ble"].is<bool>()) {
         bool en = doc["ble"].as<bool>();
         setEnabled(en);
+    }
+
+    // Power mode setting (0: Always On, 1: Deep Sleep)
+    if (doc["power"].is<int>()) {
+        int pm = doc["power"].as<int>();
+        WebServerApp::setPowerMode((PowerMode)pm);
+        Serial.printf("[Power] Power mode updated to: %s\n", pm == 0 ? "Always On" : "Deep Sleep");
     }
 
     // 1. Role switcher

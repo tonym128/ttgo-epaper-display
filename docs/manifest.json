@@ -1,6 +1,6 @@
 {
   "name": "LilyGo TTGO T5 Multi-Display Hub",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "home_assistant_domain": "edisplay",
   "new_install_prompt_erase": true,
   "builds": [

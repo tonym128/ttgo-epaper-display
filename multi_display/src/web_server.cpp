@@ -7,6 +7,7 @@
 #include "calendar_mgr.h"
 #include "badge_mgr.h"
 #include "news_mgr.h"
+#include "ble_mgr.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include "mbedtls/base64.h"
@@ -1353,12 +1354,14 @@ void WebServerApp::handleRoot() {
 
 void WebServerApp::handleStatus() {
     JsonDocument doc;
+    doc["version"] = FIRMWARE_VERSION;
     doc["role"] = (int)activeRole;
     doc["wifi_mode"] = (int)NetworkManager::getWifiMode();
     doc["ip"] = NetworkManager::getIpAddress();
     doc["ssid"] = NetworkManager::getSSID();
     doc["rssi"] = NetworkManager::getRSSI();
     doc["power"] = (int)powerMode;
+    doc["ble"] = BleManager::isEnabled();
 
     // Read battery voltage & %
     uint32_t raw = analogRead(PIN_BATTERY);

@@ -137,12 +137,14 @@ pio device monitor -b 115200
 When connected via USB Serial at `115200` baud (or via the browser Web Flasher / Device Studio console), the device accepts text and JSON commands:
 
 - `GET_CONFIG` or `GET_ALL` - Dumps the complete unified JSON configuration for all applications.
-- `CONFIG:{"role":1,"news_src":0,"ble":0,...}` - Updates application settings and Wi-Fi preferences in NVS.
+- `CONFIG:{"role":1,"power":0,"ble":0,...}` - Updates application settings and Wi-Fi preferences in NVS.
+- `POWER:0` or `ALWAYS_ON` - Sets power mode to Always On (Continuous 24/7 web server and BLE operation).
+- `POWER:1` or `DEEP_SLEEP` - Sets power mode to Deep Sleep power saving (sleeps between updates, wakes on button or timer).
 - `BLE:0` or `BLE_OFF` - Disables the Bluetooth Low Energy radio and saves the setting to NVS (reduces power consumption).
 - `BLE:1` or `BLE_ON` - Enables the Bluetooth Low Energy radio and begins advertising.
 - `ROLE:<0-4>` - Switches the active mode (`0=Weather`, `1=Picture`, `2=Calendar`, `3=Badge`, `4=News`).
 - `NEXT` - Cycles to the next item (article in News, submode in Badge, or refresh in Quotes).
-- `STATUS` - Prints battery level, Wi-Fi IP, BLE radio status, and current active role.
+- `STATUS` - Prints battery level, Wi-Fi IP, BLE radio status, power mode, and current active role.
 - `REFRESH` - Forces an immediate full e-paper display refresh.
 - `REBOOT` - Restarts the ESP32.
 - `HELP` - Lists all supported serial commands.
