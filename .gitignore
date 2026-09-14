@@ -18,6 +18,7 @@
 
 # Compiled binaries and images
 *.bin
+!docs/bin/*.bin
 *.elf
 *.raw
 
