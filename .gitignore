@@ -1,0 +1,30 @@
+# Personal secrets and environment file
+.env
+*.env.local
+
+# PlatformIO build output and dependencies
+.pio/
+*/.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE files
+.vscode/
+*/.vscode/
+.idea/
+*/.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Compiled binaries and images
+*.bin
+*.elf
+*.raw
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS generated files
+.DS_Store
+Thumbs.db

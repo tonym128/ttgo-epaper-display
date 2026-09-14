@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart E-Paper Badge Studio</title>
+  <!-- Local zero-dependency QR code library -->
+  <script src="qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning-bg: #451a03;
+      --warning-border: #f59e0b;
+      --warning-text: #fef3c7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; }
+    .status-pill {
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      font-weight: 600;
+    }
+    .status-pill.connected {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+    .alert-box {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: var(--warning-text);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .alert-box a { color: #60a5fa; text-decoration: underline; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .preview-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    /* E-Paper Screen Simulation (250x122 scaled by 2.0 = 500x244) */
+    .epaper-screen {
+      width: 100%;
+      max-width: 500px;
+      aspect-ratio: 250 / 122;
+      background: #fdfdfd;
+      color: #111;
+      border: 4px solid #475569;
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      position: relative;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      user-select: none;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      transition: 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #059669; }
+    .btn-usb { background: #059669; color: white; }
+    .btn-usb:hover { background: #047857; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: rgba(255,255,255,0.08); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .tab-btn.active { background: var(--accent); color: white; }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+    input, textarea, select {
+      width: 100%;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Badge Preview Layout */
+    .badge-left { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .badge-right { width: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .badge-name { font-size: 1.4rem; font-weight: 900; line-height: 1.1; margin-top: 4px; }
+    .badge-title { font-size: 0.85rem; font-weight: 700; color: #333; margin-top: 2px; }
+    .badge-comp { font-size: 0.75rem; color: #555; }
+    .badge-handle { font-size: 0.75rem; font-family: monospace; font-weight: 600; color: #444; }
+    .badge-tag {
+      display: inline-block;
+      background: #111;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      align-self: flex-start;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>Smart E-Paper Badge Studio</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">LilyGo TTGO T5 V2.3.1 (2.13" E-Paper)</p>
+    </div>
+    <div style="display:flex; align-items:center; gap: 8px;">
+      <span class="status-pill" id="connStatus">Disconnected</span>
+      <button class="btn btn-usb" id="serialBtn" onclick="toggleSerialConnect()">⚡ Connect via USB</button>
+      <button class="btn btn-outline" id="connectBtn" onclick="toggleConnect()">📶 Connect via BLE</button>
+    </div>
+  </header>
+
+  <!-- File:// Security Alert -->
+  <div class="alert-box" id="fileWarning" style="display:none;">
+    <strong>⚠️ Running from file:// URL:</strong>
+    <p style="margin-top: 4px;">
+      Browser hardware APIs (Web Bluetooth and Web Serial) require a secure origin (<code>http://localhost:8000</code>).
+    </p>
+    <p style="margin-top: 6px;">
+      Please open <strong><a href="http://localhost:8000" style="color:#60a5fa; text-decoration:underline;">http://localhost:8000</a></strong> in your browser instead.
+    </p>
+  </div>
+
+  <!-- Linux Chromium BLE Notice -->
+  <div class="alert-box" id="bleLinuxNotice" style="display:none; background:#1e293b; border-color:#38bdf8;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <strong style="color:#38bdf8;">💡 Linux Chromium Hardware Notice:</strong>
+        <p style="margin-top: 4px; font-size: 0.85rem;">
+          Chromium on Linux disables Web Bluetooth by default. You have two easy options:
+        </p>
+        <ul style="margin: 6px 0 0 18px; font-size: 0.85rem; line-height: 1.5;">
+          <li><strong>Recommended:</strong> Click <span style="background:#059669; padding:1px 6px; border-radius:4px; font-weight:600;">⚡ Connect via USB</span> above — it works instantly with zero setup or flags needed!</li>
+          <li><strong>For Wireless BLE:</strong> Paste <code style="background:rgba(0,0,0,0.4); padding:1px 6px; border-radius:4px; user-select:all;">chrome://flags/#enable-web-bluetooth-new-permissions-backend</code> into a new tab, set to <strong>Enabled</strong>, and restart Chromium. Or open <code id="localIpNotice">http://localhost:8000</code> on your Android smartphone!</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Simulated E-Paper Display -->
+  <div class="card preview-box">
+    <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">
+      Live 250×122 E-Paper Preview
+    </div>
+    <div class="epaper-screen" id="previewScreen">
+      <!-- Rendered dynamically by JS -->
+    </div>
+  </div>
+
+  <!-- Configuration Tabs -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchMode(0)">Conference Badge</button>
+      <button class="tab-btn" onclick="switchMode(1)">Luggage Tag</button>
+      <button class="tab-btn" onclick="switchMode(2)">Desk Status Sign</button>
+    </div>
+
+    <!-- Conference Form -->
+    <div id="formConf" style="margin-top: 16px;">
+      <div class="row">
+        <div class="form-group">
+          <label>Attendee Name</label>
+          <input type="text" id="confName" value="Alex Rivers" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label>Handle / Social</label>
+          <input type="text" id="confHandle" value="@alexrivers" oninput="updatePreview()">
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label>Job Title / Role</label>
+          <input type="text" id="confTitle" value="Software Engineer" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label>Company / Organization</label>
+          <input type="text" id="confCompany" value="Acme Corp" oninput="updatePreview()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>QR Code URL (LinkedIn / GitHub / Website)</label>
+        <input type="text" id="confQr" value="https://github.com" oninput="updatePreview()">
+      </div>
+    </div>
+
+    <!-- Luggage Form -->
+    <div id="formLugg" style="display:none; margin-top: 16px;">
+      <div class="row">
+        <div class="form-group">
+          <label>Passenger / Owner Name</label>
+          <input type="text" id="luggName" value="Alex Rivers" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="text" id="luggPhone" value="+1 555-0199" oninput="updatePreview()">
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label>Contact Email</label>
+          <input type="text" id="luggEmail" value="alex@example.com" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+          <label>Flight / Destination Note</label>
+          <input type="text" id="luggNote" value="Flight AA123 • New York" oninput="updatePreview()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Contact QR Data (tel:... or mailto:...)</label>
+        <input type="text" id="luggQr" value="tel:+15550199" oninput="updatePreview()">
+      </div>
+    </div>
+
+    <!-- Status Form -->
+    <div id="formStat" style="display:none; margin-top: 16px;">
+      <div class="form-group">
+        <label>Notice Title</label>
+        <input type="text" id="statTitle" value="DO NOT DISTURB" oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>Subtitle / Reason</label>
+        <input type="text" id="statSub" value="In Deep Focus Sprint" oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>Footer Message / Return Time</label>
+        <input type="text" id="statFoot" value="Back online at 2:00 PM" oninput="updatePreview()">
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content: flex-end; margin-top: 20px;">
+      <button class="btn btn-primary" id="sendBtn" onclick="sendToBadge()" disabled style="padding: 12px 24px; font-size: 1rem;">
+        ⚡ Send to Badge
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
+const CHAR_CONFIG_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+const CHAR_STATUS_UUID = "19b10002-e8f2-537e-4f6c-d104768a1214";
+
+let bleDevice = null;
+let configChar = null;
+let serialPort = null;
+let serialReader = null;
+let isSerialReading = false;
+let activeMode = 0;
+
+function checkConnectionSupport() {
+  const isFileOrigin = location.protocol === 'file:';
+  const hasBluetooth = 'bluetooth' in navigator;
+  const hasSerial = 'serial' in navigator;
+
+  if (isFileOrigin) {
+    document.getElementById("fileWarning").style.display = "block";
+    document.getElementById("connectBtn").disabled = true;
+    document.getElementById("serialBtn").disabled = true;
+    return;
+  }
+
+  if (!hasBluetooth) {
+    document.getElementById("bleLinuxNotice").style.display = "block";
+    const bleBtn = document.getElementById("connectBtn");
+    bleBtn.disabled = true;
+    bleBtn.title = "Bluetooth disabled by default in Linux Chromium. Enable in chrome://flags or use USB";
+  } else {
+    document.getElementById("connectBtn").disabled = false;
+  }
+
+  if (!hasSerial) {
+    document.getElementById("serialBtn").disabled = true;
+    document.getElementById("serialBtn").title = "Web Serial not supported in this browser";
+  } else {
+    document.getElementById("serialBtn").disabled = false;
+  }
+}
+
+// Generate data URL for QR Code safely using qrcode-generator
+function getQrDataUrl(text, cellSize = 3) {
+  try {
+    if (typeof qrcode === "function") {
+      const qr = qrcode(0, 'M');
+      qr.addData(text || "https://github.com");
+      qr.make();
+      return qr.createDataURL(cellSize, 1);
+    }
+  } catch (e) {
+    console.warn("QR generation fallback:", e);
+  }
+  return "";
+}
+
+function switchMode(m) {
+  activeMode = m;
+  document.querySelectorAll(".tab-btn").forEach((b, i) => b.classList.toggle("active", i === m));
+  document.getElementById("formConf").style.display = m === 0 ? "block" : "none";
+  document.getElementById("formLugg").style.display = m === 1 ? "block" : "none";
+  document.getElementById("formStat").style.display = m === 2 ? "block" : "none";
+  updatePreview();
+}
+
+function updatePreview() {
+  const screen = document.getElementById("previewScreen");
+  screen.innerHTML = "";
+
+  if (activeMode === 0) {
+    // Conference
+    const name = document.getElementById("confName").value;
+    const title = document.getElementById("confTitle").value;
+    const comp = document.getElementById("confCompany").value;
+    const handle = document.getElementById("confHandle").value;
+    const qrUrl = document.getElementById("confQr").value;
+    const qrImg = getQrDataUrl(qrUrl, 3);
+
+    const left = document.createElement("div");
+    left.className = "badge-left";
+    left.innerHTML = `
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge-tag">ATTENDEE</span>
+          <span class="badge-handle">${handle}</span>
+        </div>
+        <div class="badge-name">${name}</div>
+        <div class="badge-title">${title}</div>
+        <div class="badge-comp">${comp}</div>
+      </div>
+      <div style="font-size:0.65rem; border-top:1px solid #ddd; padding-top:4px; display:flex; justify-content:space-between;">
+        <span>🔋 85%</span>
+        <span>BTN: NEXT</span>
+      </div>
+    `;
+
+    const right = document.createElement("div");
+    right.className = "badge-right";
+    right.innerHTML = `
+      ${qrImg ? `<img src="${qrImg}" style="display:block; width:90px; height:90px; border:1px solid #111;">` : ''}
+      <span style="font-size:0.6rem; font-weight:bold; margin-top:2px;">SCAN ME</span>
+    `;
+
+    screen.style.flexDirection = "row";
+    screen.style.justifyContent = "initial";
+    screen.style.textAlign = "initial";
+    screen.appendChild(left);
+    screen.appendChild(right);
+  } else if (activeMode === 1) {
+    // Luggage
+    const owner = document.getElementById("luggName").value;
+    const phone = document.getElementById("luggPhone").value;
+    const email = document.getElementById("luggEmail").value;
+    const note = document.getElementById("luggNote").value;
+    const qr = document.getElementById("luggQr").value;
+    const qrImg = getQrDataUrl(qr || phone, 2);
+
+    screen.style.flexDirection = "column";
+    screen.style.justifyContent = "initial";
+    screen.style.textAlign = "initial";
+    screen.innerHTML = `
+      <div style="background:#111; color:#fff; font-size:0.65rem; font-weight:800; padding:2px 6px; text-align:center; margin:-12px -16px 8px -16px;">
+        PASSENGER BAGGAGE • IF FOUND PLEASE CONTACT
+      </div>
+      <div style="display:flex; flex:1;">
+        <div style="flex:1;">
+          <div style="font-size:1.1rem; font-weight:800;">${owner}</div>
+          <div style="font-size:0.75rem; color:#333; margin-top:2px;">📞 ${phone}</div>
+          <div style="font-size:0.75rem; color:#333;">✉️ ${email}</div>
+          <div style="font-size:0.75rem; color:#555; margin-top:4px;">${note}</div>
+        </div>
+        <div style="width:90px; display:flex; flex-direction:column; align-items:center;">
+          ${qrImg ? `<img src="${qrImg}" style="display:block; width:75px; height:75px; border:1px solid #111;">` : ''}
+          <span style="font-size:0.55rem; font-weight:bold; margin-top:2px;">SCAN CONTACT</span>
+        </div>
+      </div>
+    `;
+  } else {
+    // Status
+    const title = document.getElementById("statTitle").value;
+    const sub = document.getElementById("statSub").value;
+    const foot = document.getElementById("statFoot").value;
+
+    screen.style.flexDirection = "column";
+    screen.style.justifyContent = "center";
+    screen.style.alignItems = "center";
+    screen.style.textAlign = "center";
+    screen.innerHTML = `
+      <div style="font-size:0.7rem; font-weight:800; letter-spacing:1px;">• DESK NOTICE •</div>
+      <div style="font-size:1.5rem; font-weight:900; margin: 6px 0;">${title}</div>
+      <div style="font-size:0.85rem; font-weight:600; color:#333;">${sub}</div>
+      <div style="font-size:0.75rem; color:#666; margin-top:8px;">${foot}</div>
+    `;
+  }
+}
+
+function setConnectedState(label) {
+  const pill = document.getElementById("connStatus");
+  pill.innerText = label;
+  pill.className = "status-pill connected";
+  document.getElementById("sendBtn").disabled = false;
+}
+
+function setDisconnectedState() {
+  const pill = document.getElementById("connStatus");
+  pill.innerText = "Disconnected";
+  pill.className = "status-pill";
+  document.getElementById("serialBtn").innerText = "⚡ Connect via USB";
+  document.getElementById("serialBtn").style.background = "#059669";
+  document.getElementById("connectBtn").innerText = "📶 Connect via BLE";
+  document.getElementById("sendBtn").disabled = true;
+  checkConnectionSupport();
+}
+
+function applyLoadedConfig(data) {
+  if (!data) return;
+  if (data.conf) {
+    document.getElementById("confName").value = data.conf.name || "";
+    document.getElementById("confTitle").value = data.conf.title || "";
+    document.getElementById("confCompany").value = data.conf.company || "";
+    document.getElementById("confHandle").value = data.conf.handle || "";
+    document.getElementById("confQr").value = data.conf.qr || "";
+  }
+  if (data.lugg) {
+    document.getElementById("luggName").value = data.lugg.owner || "";
+    document.getElementById("luggPhone").value = data.lugg.phone || "";
+    document.getElementById("luggEmail").value = data.lugg.email || "";
+    document.getElementById("luggNote").value = data.lugg.note || "";
+    document.getElementById("luggQr").value = data.lugg.qr || "";
+  }
+  if (data.stat) {
+    document.getElementById("statTitle").value = data.stat.title || "";
+    document.getElementById("statSub").value = data.stat.subtitle || "";
+    document.getElementById("statFoot").value = data.stat.footer || "";
+  }
+  if (typeof data.mode === "number") {
+    switchMode(data.mode);
+  } else {
+    updatePreview();
+  }
+}
+
+// -------------------------------------------------------------
+// Web Serial (USB) Handling - Zero configuration on Linux Chrome
+// -------------------------------------------------------------
+async function toggleSerialConnect() {
+  if (!navigator.serial) {
+    alert("Web Serial is not available in this browser. Please use Chrome, Edge, or Chromium.");
+    return;
+  }
+
+  if (serialPort) {
+    await disconnectSerial();
+    return;
+  }
+
+  try {
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate: 115200 });
+
+    setConnectedState("USB (Serial)");
+    document.getElementById("serialBtn").innerText = "Disconnect USB";
+    document.getElementById("serialBtn").style.background = "#dc2626";
+    document.getElementById("connectBtn").disabled = true;
+
+    readSerialLoop();
+
+    // Query badge for currently active config
+    setTimeout(() => {
+      sendSerialText("GET_CONFIG\n");
+    }, 400);
+  } catch (err) {
+    console.warn("Serial connection aborted:", err);
+    await disconnectSerial();
+  }
+}
+
+async function readSerialLoop() {
+  isSerialReading = true;
+  const decoder = new TextDecoder();
+  let lineBuf = "";
+  try {
+    while (serialPort && serialPort.readable && isSerialReading) {
+      serialReader = serialPort.readable.getReader();
+      try {
+        while (true) {
+          const { value, done } = await serialReader.read();
+          if (done) break;
+          if (value) {
+            lineBuf += decoder.decode(value, { stream: true });
+            let lines = lineBuf.split("\n");
+            lineBuf = lines.pop();
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed) {
+                console.log("[ESP32]", trimmed);
+                if (trimmed.startsWith("CONFIG:")) {
+                  try {
+                    const data = JSON.parse(trimmed.substring(7));
+                    applyLoadedConfig(data);
+                  } catch (e) {}
+                }
+              }
+            }
+          }
+        }
+      } finally {
+        serialReader.releaseLock();
+      }
+    }
+  } catch (e) {
+    console.warn("Serial loop terminated:", e);
+  }
+}
+
+async function sendSerialText(text) {
+  if (!serialPort || !serialPort.writable) return;
+  const encoder = new TextEncoder();
+  const writer = serialPort.writable.getWriter();
+  try {
+    await writer.write(encoder.encode(text));
+  } finally {
+    writer.releaseLock();
+  }
+}
+
+async function disconnectSerial() {
+  isSerialReading = false;
+  if (serialReader) {
+    try { await serialReader.cancel(); } catch(e) {}
+    serialReader = null;
+  }
+  if (serialPort) {
+    try { await serialPort.close(); } catch(e) {}
+    serialPort = null;
+  }
+  setDisconnectedState();
+}
+
+// -------------------------------------------------------------
+// Web Bluetooth (BLE) Handling
+// -------------------------------------------------------------
+async function toggleConnect() {
+  if (!navigator.bluetooth) {
+    alert("Web Bluetooth is not enabled in your browser. Use 'Connect via USB' above, or enable chrome://flags/#enable-web-bluetooth-new-permissions-backend.");
+    return;
+  }
+
+  if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+    bleDevice.gatt.disconnect();
+    return;
+  }
+
+  try {
+    console.log("Requesting Bluetooth Device...");
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "EPaper-Badge" }],
+      optionalServices: [SERVICE_UUID]
+    });
+
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+    document.getElementById("connStatus").innerText = "Connecting...";
+
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    configChar = await service.getCharacteristic(CHAR_CONFIG_UUID);
+
+    setConnectedState("BLE Wireless");
+    document.getElementById("connectBtn").innerText = "Disconnect BLE";
+    document.getElementById("serialBtn").disabled = true;
+
+    // Read current badge config from device
+    const val = await configChar.readValue();
+    const decoder = new TextDecoder("utf-8");
+    const jsonStr = decoder.decode(val);
+    console.log("Received config over BLE:", jsonStr);
+    try {
+      const data = JSON.parse(jsonStr);
+      applyLoadedConfig(data);
+    } catch(e) {}
+  } catch (error) {
+    console.error("BLE Error:", error);
+    onDisconnected();
+  }
+}
+
+function onDisconnected() {
+  configChar = null;
+  bleDevice = null;
+  setDisconnectedState();
+}
+
+// -------------------------------------------------------------
+// Send payload to badge via active transport (USB Serial or BLE)
+// -------------------------------------------------------------
+async function sendToBadge() {
+  const payload = {
+    mode: activeMode,
+    name: document.getElementById("confName").value,
+    title: document.getElementById("confTitle").value,
+    company: document.getElementById("confCompany").value,
+    handle: document.getElementById("confHandle").value,
+    qr: activeMode === 0 ? document.getElementById("confQr").value : (activeMode === 1 ? document.getElementById("luggQr").value : ""),
+    owner: document.getElementById("luggName").value,
+    phone: document.getElementById("luggPhone").value,
+    email: document.getElementById("luggEmail").value,
+    note: document.getElementById("luggNote").value,
+    stitle: document.getElementById("statTitle").value,
+    subtitle: document.getElementById("statSub").value,
+    footer: document.getElementById("statFoot").value
+  };
+
+  const jsonStr = JSON.stringify(payload);
+  console.log("Sending config payload:", jsonStr);
+
+  const btn = document.getElementById("sendBtn");
+  btn.innerText = "⏳ Updating E-Paper...";
+  btn.disabled = true;
+
+  try {
+    if (serialPort && serialPort.writable) {
+      await sendSerialText(jsonStr + "\n");
+      alert("✅ Config transmitted over USB! The e-paper screen is refreshing.");
+    } else if (configChar) {
+      const encoder = new TextEncoder();
+      await configChar.writeValue(encoder.encode(jsonStr));
+      alert("✅ Config transmitted over BLE! The e-paper screen is refreshing.");
+    } else {
+      alert("Please connect via USB or BLE first.");
+    }
+  } catch (err) {
+    console.error("Send failed:", err);
+    alert("Update failed: " + err.message);
+  } finally {
+    btn.innerText = "⚡ Send to Badge";
+    btn.disabled = false;
+  }
+}
+
+// Initialise
+checkConnectionSupport();
+updatePreview();
+</script>
+
+</body>
+</html>
