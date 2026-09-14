@@ -9,6 +9,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 
+bool BleManager::bleEnabled = true;
 bool BleManager::advertising = false;
 bool BleManager::clientConnected = false;
 bool BleManager::newUpdateReceived = false;
@@ -90,7 +91,44 @@ class BlePhotoCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
+bool BleManager::isEnabled() {
+    return bleEnabled;
+}
+
+void BleManager::setEnabled(bool en) {
+    Preferences p;
+    p.begin("hub", false);
+    p.putBool("ble_en", en);
+    p.end();
+
+    if (bleEnabled == en) return;
+    bleEnabled = en;
+
+    if (bleEnabled) {
+        Serial.println(F("[BLE] Enabling Bluetooth Low Energy..."));
+        init();
+    } else {
+        Serial.println(F("[BLE] Disabling Bluetooth Low Energy..."));
+        stop();
+    }
+}
+
 void BleManager::init() {
+    Preferences p;
+    p.begin("hub", true);
+    bleEnabled = p.getBool("ble_en", true);
+    p.end();
+
+    if (!bleEnabled) {
+        Serial.println(F("[BLE] Bluetooth is disabled in NVS settings. Skipping BLE initialization."));
+        return;
+    }
+
+    if (pServer != nullptr) {
+        startAdvertising();
+        return;
+    }
+
     Serial.println("[BLE] Initializing NimBLE Stack for Multi-Display...");
     NimBLEDevice::init(BLE_DEVICE_NAME);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Max TX power
@@ -141,6 +179,7 @@ void BleManager::init() {
 }
 
 void BleManager::startAdvertising() {
+    if (!bleEnabled) return;
     advertising = true;
     NimBLEDevice::startAdvertising();
     Serial.printf("[BLE] Advertising active as '%s'\n", BLE_DEVICE_NAME);
@@ -151,11 +190,20 @@ void BleManager::stop() {
         NimBLEDevice::stopAdvertising();
         advertising = false;
     }
-    NimBLEDevice::deinit(true);
-    pServer = nullptr;
+    if (pServer != nullptr) {
+        NimBLEDevice::deinit(true);
+        pServer = nullptr;
+        pConfigChar = nullptr;
+        pCmdChar = nullptr;
+        pPhotoChar = nullptr;
+        pStatusChar = nullptr;
+    }
+    clientConnected = false;
+    Serial.println(F("[BLE] NimBLE stack de-initialized."));
 }
 
 void BleManager::loop() {
+    if (!bleEnabled || !pServer) return;
     // NimBLE handles connections via callbacks
 }
 
@@ -191,6 +239,7 @@ String BleManager::getUnifiedJson() {
     JsonDocument doc;
     doc["role"] = (int)WebServerApp::getActiveRole();
     doc["power"] = (int)WebServerApp::getPowerMode();
+    doc["ble"] = bleEnabled ? 1 : 0;
 
     // Weather
     String wLoc, wLat, wLon, wTz;
@@ -254,6 +303,12 @@ bool BleManager::applyUnifiedJson(const char* jsonStr) {
     }
 
     bool displayRefreshNeeded = false;
+
+    // 0. BLE radio setting
+    if (doc["ble"].is<int>() || doc["ble"].is<bool>()) {
+        bool en = doc["ble"].as<bool>();
+        setEnabled(en);
+    }
 
     // 1. Role switcher
     if (doc["role"].is<int>()) {

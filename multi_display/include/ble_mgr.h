@@ -16,6 +16,9 @@ public:
     static void stop();
     static void loop();
 
+    static bool isEnabled();
+    static void setEnabled(bool en);
+
     static bool isConnected();
     static bool hasNewUpdate();
     static void clearUpdateFlag();
@@ -28,6 +31,7 @@ public:
     static void handlePhotoChunk(const uint8_t* data, size_t len);
 
 private:
+    static bool bleEnabled;
     static bool advertising;
     static bool clientConnected;
     static bool newUpdateReceived;

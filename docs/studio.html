@@ -645,6 +645,31 @@
               </select>
             </div>
           </div>
+
+          <!-- Bluetooth Low Energy (BLE) Radio Controls -->
+          <div class="form-group" style="margin-top: 14px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div>
+                <span style="font-weight: 600; font-size: 0.92rem; color: #f8fafc;">Bluetooth Low Energy (BLE) Radio</span>
+                <span style="display: block; font-size: 0.78rem; color: var(--text-dim);">Broadcasts 'LilyGo-EDisplay'. Disable to turn off the radio and maximize battery life.</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button id="btnBleDisable" class="btn btn-secondary" style="font-size: 0.78rem; padding: 6px 12px; color: #f87171; border-color: rgba(239,68,68,0.3);" onclick="setBleRadioState(false)">
+                  🛑 Turn BLE Off
+                </button>
+                <button id="btnBleEnable" class="btn btn-secondary" style="font-size: 0.78rem; padding: 6px 12px; color: #38bdf8; border-color: rgba(56,189,248,0.3);" onclick="setBleRadioState(true)">
+                  📶 Turn BLE On
+                </button>
+              </div>
+            </div>
+            <div id="bleStatusLabel" style="margin-top: 8px; font-size: 0.78rem; color: #94a3b8;">
+              Radio Status: <span id="bleStateText" style="color: #34d399; font-weight: 600;">Enabled</span>
+            </div>
+            <div id="bleWarningBox" style="display: none; margin-top: 8px; font-size: 0.76rem; color: #fbbf24; background: rgba(245,158,11,0.1); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(245,158,11,0.2);">
+              ⚠️ Bluetooth is disabled. Reconnect via USB Serial and click "Turn BLE On" to reactivate.
+            </div>
+          </div>
+
           <div style="margin-top: 16px; display: flex; gap: 10px;">
             <button class="btn btn-primary" style="flex: 1;" onclick="pushAllToDevice()">
               📤 Save Wi-Fi & System
@@ -681,7 +706,11 @@
         <div class="terminal-box">
           <div class="terminal-header">
             <span>Device Console (BLE & Serial)</span>
-            <button style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;" onclick="clearLog()">Clear</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button style="background: transparent; border: none; color: #38bdf8; cursor: pointer; font-size: 0.75rem;" onclick="setBleRadioState(true)">BLE ON</button>
+              <button style="background: transparent; border: none; color: #f87171; cursor: pointer; font-size: 0.75rem;" onclick="setBleRadioState(false)">BLE OFF</button>
+              <button style="background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.75rem;" onclick="clearLog()">Clear</button>
+            </div>
           </div>
           <div id="logConsole" class="terminal-body">[Studio] Connect via Bluetooth or USB Serial to read or configure any tool.</div>
           <div class="terminal-input-bar">
@@ -958,12 +987,55 @@
         if (data.wifi.mode !== undefined) document.getElementById('wifiMode').value = data.wifi.mode;
       }
 
+      // BLE Radio State
+      if (data.ble !== undefined) {
+        updateBleRadioUI(data.ble === 1 || data.ble === true);
+      }
+
       renderActiveCanvas();
+    }
+
+    let currentBleState = true;
+
+    function updateBleRadioUI(enable) {
+      currentBleState = enable;
+      const text = document.getElementById('bleStateText');
+      const warning = document.getElementById('bleWarningBox');
+      if (text) {
+        text.textContent = enable ? 'Enabled' : 'Disabled';
+        text.style.color = enable ? '#34d399' : '#f87171';
+      }
+      if (warning) {
+        warning.style.display = enable ? 'none' : 'block';
+      }
+    }
+
+    async function setBleRadioState(enable) {
+      if (!enable && bleServer && bleServer.connected) {
+        const ok = confirm("Warning: Disabling Bluetooth while connected over BLE will disconnect this session. You will need to reconnect using USB Serial to turn BLE back on. Proceed?");
+        if (!ok) return;
+      }
+      updateBleRadioUI(enable);
+
+      if (serialPort) {
+        await sendSerialText(enable ? 'BLE:1' : 'BLE:0');
+        log(`[Serial] Sent command: ${enable ? 'BLE:1' : 'BLE:0'}`);
+      } else if (bleConfigChar) {
+        try {
+          await bleConfigChar.writeValue(new TextEncoder().encode(JSON.stringify({ ble: enable ? 1 : 0 })));
+          log(`[BLE] Configured BLE Radio state: ${enable ? '1' : '0'}`);
+        } catch (e) {
+          log(`[BLE Error] ${e.message}`);
+        }
+      } else {
+        alert('Please connect via USB Serial or Bluetooth first!');
+      }
     }
 
     async function pushAllToDevice() {
       const payload = {
         role: parseInt(document.getElementById('quickRoleSelect').value, 10),
+        ble: currentBleState ? 1 : 0,
         weather: {
           loc: document.getElementById('weatherLoc').value,
           lat: document.getElementById('weatherLat').value,

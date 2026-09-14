@@ -577,6 +577,16 @@
               <input type="text" id="cfgLon" value="151.2093" oninput="syncEnvFromForm()">
             </div>
           </div>
+
+          <div class="row" style="margin-top: 6px;">
+            <div class="form-group" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px;">
+              <input type="checkbox" id="cfgBleEn" checked style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;" onchange="syncEnvFromForm()">
+              <label for="cfgBleEn" style="margin: 0; cursor: pointer; font-size: 0.88rem; color: #cbd5e1;">
+                Enable Bluetooth (BLE)
+                <span style="display: block; font-size: 0.74rem; color: var(--text-dim);">Uncheck to turn off Bluetooth radio and reduce battery drain</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- .env Raw Tab Content -->
@@ -614,7 +624,9 @@
     <div class="terminal-wrapper">
       <div class="terminal-header">
         <span style="font-weight: 600; color: #cbd5e1;">📟 Serial Monitor (115200 Baud)</span>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button style="background: transparent; border: none; color: #38bdf8; cursor: pointer; font-size: 0.78rem;" onclick="sendSerialCmd('BLE:1')">BLE ON</button>
+          <button style="background: transparent; border: none; color: #f87171; cursor: pointer; font-size: 0.78rem;" onclick="sendSerialCmd('BLE:0')">BLE OFF</button>
           <button style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;" onclick="sendSerialCmd('STATUS')">STATUS</button>
           <button style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;" onclick="sendSerialCmd('REFRESH')">REFRESH</button>
           <button style="background: transparent; border: none; color: var(--text-dim); cursor: pointer;" onclick="sendSerialCmd('REBOOT')">REBOOT</button>
@@ -693,6 +705,7 @@
       const role = document.getElementById('cfgRole').value;
       const lat = document.getElementById('cfgLat').value;
       const lon = document.getElementById('cfgLon').value;
+      const ble = document.getElementById('cfgBleEn').checked ? '1' : '0';
 
       const envContent = `# LilyGo TTGO T5 Configuration
 WIFI_SSID="${ssid}"
@@ -702,6 +715,7 @@ LOCATION_NAME="${loc}"
 LATITUDE="${lat}"
 LONGITUDE="${lon}"
 TIMEZONE="auto"
+BLE_ENABLED="${ble}"
 `;
       document.getElementById('rawEnv').value = envContent;
     }
@@ -719,6 +733,7 @@ TIMEZONE="auto"
         if (k === 'DEFAULT_APP_ROLE') document.getElementById('cfgRole').value = v;
         if (k === 'LATITUDE') document.getElementById('cfgLat').value = v;
         if (k === 'LONGITUDE') document.getElementById('cfgLon').value = v;
+        if (k === 'BLE_ENABLED') document.getElementById('cfgBleEn').checked = (v === '1' || v === 'true');
       });
     }
 
@@ -836,7 +851,8 @@ TIMEZONE="auto"
         location: document.getElementById('cfgLocation').value,
         lat: document.getElementById('cfgLat').value,
         lon: document.getElementById('cfgLon').value,
-        units: 'metric'
+        units: 'metric',
+        ble: document.getElementById('cfgBleEn').checked ? 1 : 0
       };
 
       const payload = 'CONFIG:' + JSON.stringify(config);

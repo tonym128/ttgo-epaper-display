@@ -144,9 +144,11 @@ static void handleSerialCommands() {
 
     if (line.equalsIgnoreCase("HELP") || line == "?") {
         Serial.println(F("\n=== LilyGo E-Display Hub Serial Console ==="));
-        Serial.println(F("  STATUS       - Print device status, IP, active role, battery"));
+        Serial.println(F("  STATUS       - Print device status, IP, active role, BLE, battery"));
         Serial.println(F("  GET_CONFIG   - Get complete configuration of ALL tools (JSON)"));
         Serial.println(F("  GET_BADGE    - Get badge configuration (JSON)"));
+        Serial.println(F("  BLE:0        - Disable Bluetooth Low Energy (BLE) radio to save power"));
+        Serial.println(F("  BLE:1        - Enable Bluetooth Low Energy (BLE) radio"));
         Serial.println(F("  ROLE:<0-4>   - Switch active role (0:Weather, 1:Pic, 2:Cal, 3:Badge, 4:News)"));
         Serial.println(F("  NEXT         - Cycle next item (Article / Quote / Badge)"));
         Serial.println(F("  REFRESH      - Force full e-paper screen refresh"));
@@ -158,11 +160,12 @@ static void handleSerialCommands() {
     if (line.equalsIgnoreCase("STATUS")) {
         float battV = getBatteryVoltage();
         int battPct = getBatteryPercent(battV);
-        Serial.printf("[Status] Role: %d, Mode: %s, SSID: %s, IP: %s, Battery: %.2fV (%d%%)\n",
+        Serial.printf("[Status] Role: %d, Mode: %s, SSID: %s, IP: %s, BLE: %s, Battery: %.2fV (%d%%)\n",
             (int)WebServerApp::getActiveRole(),
             NetworkManager::isApMode() ? "AP" : "Router",
             NetworkManager::getSSID().c_str(),
             NetworkManager::getIpAddress().c_str(),
+            BleManager::isEnabled() ? "Enabled" : "Disabled",
             battV, battPct);
         return;
     }
@@ -213,6 +216,16 @@ static void handleSerialCommands() {
         serializeJson(bDoc, out);
         Serial.print(F("CONFIG:"));
         Serial.println(out);
+        return;
+    }
+    if (line.equalsIgnoreCase("BLE:0") || line.equalsIgnoreCase("BLE_OFF") || line.equalsIgnoreCase("BLE:OFF")) {
+        BleManager::setEnabled(false);
+        Serial.println(F("[Serial] Bluetooth Low Energy (BLE) DISABLED and stopped."));
+        return;
+    }
+    if (line.equalsIgnoreCase("BLE:1") || line.equalsIgnoreCase("BLE_ON") || line.equalsIgnoreCase("BLE:ON")) {
+        BleManager::setEnabled(true);
+        Serial.println(F("[Serial] Bluetooth Low Energy (BLE) ENABLED and advertising."));
         return;
     }
     if (line.startsWith("ROLE:")) {
