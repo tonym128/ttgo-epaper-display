@@ -926,14 +926,28 @@ BLE_ENABLED="${ble}"
     async function sendSerialText(text) {
       if (!serialPort || !serialPort.writable) {
         logTerminal('[Error] Device not connected. Click "Connect Serial" first.');
-        return;
+        return false;
       }
-      const textEncoder = new TextEncoderStream();
-      const writableStreamClosed = textEncoder.readable.pipeTo(serialPort.writable);
-      const writer = textEncoder.writable.getWriter();
-      await writer.write(text + '\n');
-      writer.releaseLock();
-      logTerminal(`--> [Sent] ${text}`);
+      const writer = serialPort.writable.getWriter();
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text + '\n');
+        if (data.length <= 512) {
+          await writer.write(data);
+        } else {
+          for (let i = 0; i < data.length; i += 512) {
+            await writer.write(data.slice(i, i + 512));
+            await new Promise(r => setTimeout(r, 12));
+          }
+        }
+        logTerminal(`--> [Sent] ${text.length > 80 ? text.substring(0, 80) + '...' : text}`);
+        return true;
+      } catch (err) {
+        logTerminal(`[Serial Send Error] ${err.message}`);
+        return false;
+      } finally {
+        writer.releaseLock();
+      }
     }
 
     function sendSerialCmd(cmd) {

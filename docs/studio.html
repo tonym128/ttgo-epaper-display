@@ -918,14 +918,31 @@
     }
 
     async function sendSerialText(text) {
-      if (!serialPort || !serialPort.writable) return false;
-      const textEncoder = new TextEncoderStream();
-      textEncoder.readable.pipeTo(serialPort.writable);
-      const writer = textEncoder.writable.getWriter();
-      await writer.write(text + '\n');
-      writer.releaseLock();
-      log(`>> [Serial Sent] ${text}`);
-      return true;
+      if (!serialPort || !serialPort.writable) {
+        log('[Error] USB Serial port not connected.');
+        return false;
+      }
+      const writer = serialPort.writable.getWriter();
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text + '\n');
+        if (data.length <= 512) {
+          await writer.write(data);
+        } else {
+          // Chunk larger transfers (e.g. photos) to prevent UART congestion
+          for (let i = 0; i < data.length; i += 512) {
+            await writer.write(data.slice(i, i + 512));
+            await new Promise(r => setTimeout(r, 12));
+          }
+        }
+        log(`>> [Serial Sent] ${text.length > 80 ? text.substring(0, 80) + '...' : text}`);
+        return true;
+      } catch (err) {
+        log(`[Serial Send Error] ${err.message}`);
+        return false;
+      } finally {
+        writer.releaseLock();
+      }
     }
 
     // ==========================================
@@ -1275,7 +1292,8 @@
       // Floyd-Steinberg error diffusion
       const w = 250;
       const h = 122;
-      const bitBuffer = new Uint8Array(Math.ceil((w * h) / 8));
+      const bytesPerRow = 32; // (250 + 7) / 8 = 32 bytes per row for Adafruit GFX / GxEPD
+      const bitBuffer = new Uint8Array(bytesPerRow * h); // 32 * 122 = 3904 bytes
 
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
@@ -1284,14 +1302,11 @@
           const newVal = oldVal < 128 ? 0 : 255;
           const err = oldVal - newVal;
 
-          // Pack 1-bit monochrome (0=black, 1=white)
-          const bitIdx = idx;
-          const byteIdx = Math.floor(bitIdx / 8);
-          const bitPos = 7 - (bitIdx % 8);
-          if (newVal === 255) {
+          // Pack 1-bit monochrome (Adafruit GFX / GxEPD: 1 = Black, 0 = White)
+          if (newVal === 0) {
+            const byteIdx = y * bytesPerRow + Math.floor(x / 8);
+            const bitPos = 7 - (x % 8);
             bitBuffer[byteIdx] |= (1 << bitPos);
-          } else {
-            bitBuffer[byteIdx] &= ~(1 << bitPos);
           }
 
           // Error distribution
@@ -1311,11 +1326,10 @@
 
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
-          const bitIdx = y * w + x;
-          const byteIdx = Math.floor(bitIdx / 8);
-          const bitPos = 7 - (bitIdx % 8);
-          const isWhite = (bitBuffer[byteIdx] & (1 << bitPos)) !== 0;
-          if (!isWhite) {
+          const byteIdx = y * bytesPerRow + Math.floor(x / 8);
+          const bitPos = 7 - (x % 8);
+          const isBlack = (bitBuffer[byteIdx] & (1 << bitPos)) !== 0;
+          if (isBlack) {
             ctx.fillRect(x, y, 1, 1);
           }
         }
@@ -1367,12 +1381,11 @@
       // 2. Over USB Serial
       if (serialPort) {
         let binary = '';
-        const bytes = new Uint8Array(processedBitmap.buffer);
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        for (let i = 0; i < processedBitmap.length; i++) {
+          binary += String.fromCharCode(processedBitmap[i]);
         }
         const b64 = btoa(binary);
-        log(`[Serial Photo] Sending ${bytes.byteLength} bytes photo via Base64 (${b64.length} chars)...`);
+        log(`[Serial Photo] Sending ${processedBitmap.length} bytes photo via Base64 (${b64.length} chars)...`);
         await sendSerialText(`PHOTO_B64:${caption}:${b64}`);
         log('[Serial Photo] Photo uploaded over USB Serial! E-Paper updating.');
         alert('Photo uploaded over USB Serial! E-Paper updating.');

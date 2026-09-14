@@ -931,14 +931,30 @@
     }
 
     async function sendSerialText(text) {
-      if (!serialPort || !serialPort.writable) return false;
-      const textEncoder = new TextEncoderStream();
-      textEncoder.readable.pipeTo(serialPort.writable);
-      const writer = textEncoder.writable.getWriter();
-      await writer.write(text + '\n');
-      writer.releaseLock();
-      log(`>> [Serial Sent] ${text}`);
-      return true;
+      if (!serialPort || !serialPort.writable) {
+        log('[Error] USB Serial port not connected.');
+        return false;
+      }
+      const writer = serialPort.writable.getWriter();
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text + '\n');
+        if (data.length <= 512) {
+          await writer.write(data);
+        } else {
+          for (let i = 0; i < data.length; i += 512) {
+            await writer.write(data.slice(i, i + 512));
+            await new Promise(r => setTimeout(r, 12));
+          }
+        }
+        log(`>> [Serial Sent] ${text.length > 80 ? text.substring(0, 80) + '...' : text}`);
+        return true;
+      } catch (err) {
+        log(`[Serial Send Error] ${err.message}`);
+        return false;
+      } finally {
+        writer.releaseLock();
+      }
     }
 
     // Web Bluetooth (BLE) API
