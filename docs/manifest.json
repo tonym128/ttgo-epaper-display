@@ -1,0 +1,14 @@
+{
+  "name": "LilyGo TTGO T5 Multi-Display Hub",
+  "version": "1.0.0",
+  "home_assistant_domain": "edisplay",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        { "path": "bin/multi_display_merged.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <esp_sleep.h>
+#include <ArduinoJson.h>
+#include <Preferences.h>
 #include "config.h"
 #include "display_mgr.h"
 #include "network_mgr.h"
@@ -131,7 +133,98 @@ void setup() {
     lastHourlyRefresh = millis();
 }
 
+static void handleSerialCommands() {
+    if (!Serial.available()) return;
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line.isEmpty()) return;
+
+    if (line.equalsIgnoreCase("HELP") || line == "?") {
+        Serial.println(F("\n=== LilyGo E-Display Hub Serial Console ==="));
+        Serial.println(F("  STATUS       - Print device status, IP, active role, battery"));
+        Serial.println(F("  REFRESH      - Force full e-paper screen refresh"));
+        Serial.println(F("  REBOOT       - Restart ESP32"));
+        Serial.println(F("  CONFIG:{...} - Push JSON configuration to update NVS settings"));
+        Serial.println(F("============================================"));
+        return;
+    }
+    if (line.equalsIgnoreCase("STATUS")) {
+        float battV = getBatteryVoltage();
+        int battPct = getBatteryPercent(battV);
+        Serial.printf("[Status] Role: %d, Mode: %s, SSID: %s, IP: %s, Battery: %.2fV (%d%%)\n",
+            (int)WebServerApp::getActiveRole(),
+            NetworkManager::isApMode() ? "AP" : "Router",
+            NetworkManager::getSSID().c_str(),
+            NetworkManager::getIpAddress().c_str(),
+            battV, battPct);
+        return;
+    }
+    if (line.equalsIgnoreCase("REFRESH")) {
+        Serial.println(F("[Serial] Forcing display refresh..."));
+        renderActiveRole();
+        return;
+    }
+    if (line.equalsIgnoreCase("REBOOT")) {
+        Serial.println(F("[Serial] Rebooting..."));
+        delay(200);
+        ESP.restart();
+        return;
+    }
+    if (line.startsWith("CONFIG:")) {
+        String jsonPayload = line.substring(7);
+        JsonDocument doc;
+        DeserializationError err = deserializeJson(doc, jsonPayload);
+        if (err) {
+            Serial.printf("[Config Error] Invalid JSON: %s\n", err.c_str());
+            return;
+        }
+
+        Preferences p;
+        bool needReboot = false;
+
+        // Wi-Fi network settings
+        if (doc["sta_ssid"].is<const char*>() || doc["sta_pass"].is<const char*>() || doc["mode"].is<int>()) {
+            p.begin("network", false);
+            if (doc["sta_ssid"].is<const char*>()) p.putString("sta_ssid", doc["sta_ssid"].as<const char*>());
+            if (doc["sta_pass"].is<const char*>()) p.putString("sta_pass", doc["sta_pass"].as<const char*>());
+            if (doc["mode"].is<int>()) p.putInt("mode", doc["mode"].as<int>());
+            p.end();
+            needReboot = true;
+        }
+
+        // Active role & power settings
+        if (doc["role"].is<int>() || doc["power"].is<int>()) {
+            p.begin("hub", false);
+            if (doc["role"].is<int>()) p.putInt("role", doc["role"].as<int>());
+            if (doc["power"].is<int>()) p.putInt("power", doc["power"].as<int>());
+            p.end();
+        }
+
+        // Weather settings
+        if (doc["location"].is<const char*>() || doc["lat"].is<const char*>() || doc["lon"].is<const char*>()) {
+            p.begin("weather", false);
+            if (doc["location"].is<const char*>()) p.putString("loc", doc["location"].as<const char*>());
+            if (doc["lat"].is<const char*>()) p.putString("lat", doc["lat"].as<const char*>());
+            if (doc["lon"].is<const char*>()) p.putString("lon", doc["lon"].as<const char*>());
+            if (doc["units"].is<const char*>()) p.putString("units", doc["units"].as<const char*>());
+            p.end();
+        }
+
+        Serial.println(F("[Config Success] Configuration written to NVS!"));
+        if (needReboot) {
+            Serial.println(F("[Config] Network settings updated -> Restarting in 1s to reconnect..."));
+            delay(1000);
+            ESP.restart();
+        } else {
+            renderActiveRole();
+        }
+    }
+}
+
 void loop() {
+    // 0. Process Web Serial commands
+    handleSerialCommands();
+
     // 1. Service web client & DNS captive portal
     WebServerApp::handleClient();
     NetworkManager::loop();

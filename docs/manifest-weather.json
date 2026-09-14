@@ -1,0 +1,13 @@
+{
+  "name": "LilyGo TTGO T5 Weather Station",
+  "version": "1.0.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        { "path": "bin/weather_merged.bin", "offset": 0 }
+      ]
+    }
+  ]
+}
